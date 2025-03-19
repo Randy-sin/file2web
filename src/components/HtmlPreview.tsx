@@ -8,6 +8,7 @@ interface HtmlPreviewProps {
   html: string;
   isMultiFile?: boolean;
   files?: Array<{name: string, content: string}> | null;
+  autoPublish?: boolean;
 }
 
 /**
@@ -15,8 +16,9 @@ interface HtmlPreviewProps {
  * 
  * 提供HTML预览功能，支持单文件和多文件模式
  * 包含本地预览和网络发布功能
+ * 支持自动发布功能，根据autoPublish参数决定是否自动发布
  */
-export default function HtmlPreview({ html, isMultiFile = false, files = null }: HtmlPreviewProps) {
+export default function HtmlPreview({ html, isMultiFile = false, files = null, autoPublish = false }: HtmlPreviewProps) {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -420,6 +422,22 @@ export default function HtmlPreview({ html, isMultiFile = false, files = null }:
   const toggleCodeExpanded = () => {
     setCodeExpanded(!codeExpanded);
   };
+
+  // 自动发布功能：当组件挂载且有HTML内容时自动发布
+  useEffect(() => {
+    // 当autoPublish为true且html内容存在且未开始发布也未发布过时，触发自动发布
+    if (autoPublish && html && !isPublishing && !publishedUrl) {
+      console.log('自动发布功能已触发');
+      // 延迟一秒执行，确保界面已经渲染完成
+      const timer = setTimeout(() => {
+        publishWebsite();
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  // 由于publishWebsite是组件内的函数，我们需要从依赖列表中排除它，避免无限循环
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPublish, html, isPublishing, publishedUrl]);
 
   return (
     <div className="mt-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden border border-gray-100 dark:border-gray-700">
