@@ -5,6 +5,7 @@ import TextEditor from '@/components/TextEditor';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import Link from 'next/link';
+import Image from 'next/image';
 import AdManager from '@/components/AdManager';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowRight, FileText, Wand2, Sparkles, CheckCircle2, Code, Terminal, Braces, Zap, Brain, Layers, Cpu, ExternalLink } from 'lucide-react';
@@ -291,6 +292,7 @@ export default function ConvertPage() {
                         title: 'DeepSeek-R1官网', 
                         description: 'AI模型技术展示官网',
                         url: 'https://jqevvi6gr8.yourware.so/',
+                        image: '/example1-deepseek.png',
                         icon: <Brain size={24} />,
                         color: 'from-blue-500 to-cyan-500'
                       },
@@ -298,6 +300,7 @@ export default function ConvertPage() {
                         title: '小红书开发者平台', 
                         description: '独立开发者生态与扶持政策',
                         url: 'https://42ti5ytla5.yourware.so/',
+                        image: '/example2-rednote.png',
                         icon: <Code size={24} />,
                         color: 'from-purple-500 to-pink-500'
                       },
@@ -305,13 +308,15 @@ export default function ConvertPage() {
                         title: 'Polaroid相机官网', 
                         description: '复古拍立得相机产品展示',
                         url: 'https://novc6limig.yourware.so/',
+                        image: '/example3-polaris.png',
                         icon: <Sparkles size={24} />,
                         color: 'from-amber-500 to-orange-500'
                       },
                       { 
-                        title: '企业技术博客', 
-                        description: '技术分享与行业洞察',
+                        title: 'Crypto Knowledge', 
+                        description: '加密货币与Web3知识学习平台',
                         url: 'https://woqffa3oz9.yourware.so/',
+                        image: '/example4-crypto.png',
                         icon: <Braces size={24} />,
                         color: 'from-emerald-500 to-teal-500'
                       },
@@ -319,6 +324,7 @@ export default function ConvertPage() {
                         title: '京都旅游指南', 
                         description: '日本京都旅行攻略与景点介绍',
                         url: 'https://ehe9lf1kzt.yourware.so/',
+                        image: '/example5-tokyo.png',
                         icon: <Terminal size={24} />,
                         color: 'from-rose-500 to-red-500'
                       },
@@ -326,6 +332,7 @@ export default function ConvertPage() {
                         title: '美食记忆网站', 
                         description: '全球美食文化与烹饪技巧分享',
                         url: 'https://1ubefo93uv.yourware.so/',
+                        image: '/example6-food.png',
                         icon: <Zap size={24} />,
                         color: 'from-indigo-500 to-violet-500'
                       }
@@ -336,11 +343,20 @@ export default function ConvertPage() {
                         whileHover={{ y: -5 }}
                         onClick={() => window.open(example.url, '_blank')}
                       >
-                        <div className={`h-32 bg-gradient-to-r ${example.color} relative flex items-center justify-center`}>
-                          <div className="text-white">
-                            {example.icon}
+                        <div className="h-48 relative overflow-hidden">
+                          <Image 
+                            src={example.image} 
+                            alt={example.title}
+                            fill
+                            sizes="(max-width: 768px) 100vw, 33vw"
+                            className="object-cover transition-transform group-hover:scale-105"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                          <div className="absolute bottom-3 left-3 flex items-center space-x-2">
+                            <div className="p-1.5 rounded-lg bg-white/90 text-gray-800">
+                              {example.icon}
+                            </div>
                           </div>
-                          <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-20 transition-opacity"></div>
                         </div>
                         <div className="p-4">
                           <h3 className="font-medium text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{example.title}</h3>
