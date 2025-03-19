@@ -131,8 +131,8 @@ export default function Footer() {
           >
             <p>&copy; {new Date().getFullYear()} File2Web. 保留所有权利。</p>
             <div className="mt-4 md:mt-0 flex space-x-6">
-              <span className="hover:text-gray-300 cursor-pointer transition-colors">隐私政策</span>
-              <span className="hover:text-gray-300 cursor-pointer transition-colors">使用条款</span>
+              <Link href="/privacy" className="hover:text-gray-300 cursor-pointer transition-colors">隐私政策</Link>
+              <Link href="/terms" className="hover:text-gray-300 cursor-pointer transition-colors">使用条款</Link>
             </div>
           </motion.div>
         </div>
