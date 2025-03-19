@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import TextEditor from '@/components/TextEditor';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -14,6 +14,7 @@ import { motion } from 'framer-motion';
 export default function ConvertPage() {
   const [activeTab, setActiveTab] = useState('editor');
   const [isInView, setIsInView] = useState(false);
+  const examplesRef = useRef<HTMLDivElement>(null);
   
   // 监听滚动，当组件进入视图时触发动画
   useEffect(() => {
@@ -39,6 +40,17 @@ export default function ConvertPage() {
       }
     };
   }, []);
+  
+  // 处理用户案例点击事件
+  const handleUserCasesClick = () => {
+    setActiveTab('examples');
+    // 滚动到用户案例部分
+    setTimeout(() => {
+      if (examplesRef.current) {
+        examplesRef.current.scrollIntoView({ behavior: 'smooth' });
+      }
+    }, 100); // 给tab切换一点时间
+  };
   
   // 动画变体
   const containerVariants = {
@@ -258,7 +270,7 @@ export default function ConvertPage() {
         {/* 主要内容区域 - 使用选项卡提供更多功能 */}
         <section className="py-16 bg-white dark:bg-gray-800">
           <div className="container mx-auto px-4">
-            <Tabs defaultValue="editor" className="w-full max-w-5xl mx-auto" onValueChange={setActiveTab}>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full max-w-5xl mx-auto">
               <div className="flex justify-center mb-8">
                 <TabsList className="grid grid-cols-3 w-full max-w-md bg-gray-100 dark:bg-gray-700 p-1 rounded-xl">
                   <TabsTrigger value="editor" className="flex items-center gap-2 rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-gray-800 data-[state=active]:shadow-sm">
@@ -282,7 +294,7 @@ export default function ConvertPage() {
                 </div>
               </TabsContent>
               
-              <TabsContent value="examples" className="focus:outline-none">
+              <TabsContent value="examples" className="focus:outline-none" ref={examplesRef}>
                 <div className="bg-gray-50 dark:bg-gray-900 rounded-2xl p-6 shadow-lg border border-gray-100 dark:border-gray-700">
                   <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">用户成功案例展示</h2>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -426,7 +438,7 @@ export default function ConvertPage() {
             {/* 底部帮助链接 */}
             <div className="mt-8 text-center">
               <p className="text-gray-600 dark:text-gray-400">
-                不确定如何使用？查看我们的<Link href="/#how-it-works" className="text-blue-600 hover:underline">使用指南</Link>或查看<button onClick={() => setActiveTab('examples')} className="text-blue-600 hover:underline">用户案例</button>。
+                不确定如何使用？查看我们的<Link href="/#how-it-works" className="text-blue-600 hover:underline">使用指南</Link>或查看<button onClick={handleUserCasesClick} className="text-blue-600 hover:underline">用户案例</button>。
               </p>
             </div>
           </div>
