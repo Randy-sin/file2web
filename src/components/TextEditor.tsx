@@ -61,7 +61,7 @@ function createTimeoutSignal(timeoutMs = 600000) { // 10分钟超时
 
 export default function TextEditor() {
   const [text, setText] = useState('');
-  const [autoPublish, setAutoPublish] = useState(false);
+  const [autoPublish, setAutoPublish] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [generatedHtml, setGeneratedHtml] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -857,20 +857,6 @@ export default function TextEditor() {
                   高精度模式
                   <span className={`ml-2 w-3 h-3 rounded-full ${isHighPerformance ? 'bg-white' : 'bg-gray-400 dark:bg-gray-500'}`}></span>
                 </button>
-
-                <button
-                  type="button"
-                  onClick={() => setAutoPublish(!autoPublish)}
-                  className={`flex items-center px-3 py-1 rounded-full text-sm transition-colors ${
-                    autoPublish 
-                      ? 'bg-gradient-to-r from-green-500 to-teal-500 text-white' 
-                      : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300'
-                  }`}
-                >
-                  <Globe size={16} className={`mr-1 ${autoPublish ? 'animate-pulse' : ''}`} />
-                  自动发布
-                  <span className={`ml-2 w-3 h-3 rounded-full ${autoPublish ? 'bg-white' : 'bg-gray-400 dark:bg-gray-500'}`}></span>
-                </button>
               </div>
             </div>
             
@@ -941,14 +927,12 @@ export default function TextEditor() {
                         </div>
                       </li>
                     )}
-                    {autoPublish && (
-                      <li className="text-green-500 dark:text-green-400 font-medium">
-                        自动发布：生成完成后将自动发布网页并提供访问链接
-                        <div className="text-sm text-gray-600 dark:text-gray-400 mt-1 ml-4">
-                          网页将自动发布到互联网，您可以直接与他人分享链接
-                        </div>
-                      </li>
-                    )}
+                    <li className="text-green-500 dark:text-green-400 font-medium">
+                      生成完成后将自动发布网页并提供访问链接
+                      <div className="text-sm text-gray-600 dark:text-gray-400 mt-1 ml-4">
+                        网页将自动发布到互联网，您可以直接与他人分享链接
+                      </div>
+                    </li>
                   </ul>
                 </div>
                 
