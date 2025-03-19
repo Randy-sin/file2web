@@ -307,8 +307,12 @@ export default function TextEditor() {
           errorMessage = `生成主页失败 (HTTP ${indexResponse.status}): ${indexResponse.statusText}`;
         }
         
+        // 对高精度模式下的504超时错误提供特定提示
+        if (indexResponse.status === 504 || (errorMessage.includes('504') && isHighPerformance)) {
+          errorMessage = '因为高精度模式目前api请求只有60s，管理员暂时无法支撑长文本在高精度模式下的费用，请重新尝试或改为普通模式';
+        }
         // 如果包含网络相关错误，提供更具体的提示
-        if (errorMessage.includes('网络连接') || errorMessage.includes('无法连接')) {
+        else if (errorMessage.includes('网络连接') || errorMessage.includes('无法连接')) {
           errorMessage += '。请检查您的网络连接并尝试重新生成。';
         }
         
@@ -380,8 +384,12 @@ export default function TextEditor() {
               errorMessage = `生成页面 ${fileIndex} 失败 (HTTP ${contentResponse.status}): ${contentResponse.statusText}`;
             }
             
+            // 对高精度模式下的504超时错误提供特定提示
+            if (contentResponse.status === 504 || (errorMessage.includes('504') && isHighPerformance)) {
+              errorMessage = '因为高精度模式目前api请求只有60s，管理员暂时无法支撑长文本在高精度模式下的费用，请重新尝试或改为普通模式';
+            }
             // 如果包含网络相关错误，提供更具体的提示
-            if (errorMessage.includes('网络连接') || errorMessage.includes('无法连接')) {
+            else if (errorMessage.includes('网络连接') || errorMessage.includes('无法连接')) {
               errorMessage += '。请检查您的网络连接并尝试重新生成。';
             }
             
@@ -508,7 +516,11 @@ export default function TextEditor() {
         console.error('原始错误信息:', error.message, error.cause || '无详细原因');
         
         // 针对不同错误类型提供更友好的提示
-        if (error.message.includes('signal timed out')) {
+        if (error.message.includes('504') && isHighPerformance) {
+          // 高精度模式下的504错误特定提示
+          errorMessage = '因为高精度模式目前api请求只有60s，管理员暂时无法支撑长文本在高精度模式下的费用，请重新尝试或改为普通模式';
+        }
+        else if (error.message.includes('signal timed out')) {
           // 文本过长导致的超时情况
           const textLength = text.length;
           if (textLength > 10000) {
@@ -671,7 +683,11 @@ export default function TextEditor() {
         console.error('原始错误信息:', error.message);
         
         // 针对不同错误类型提供更友好的提示
-        if (error.message.includes('signal timed out')) {
+        if (error.message.includes('504') && isHighPerformance) {
+          // 高精度模式下的504错误特定提示
+          errorMessage = '因为高精度模式目前api请求只有60s，管理员暂时无法支撑长文本在高精度模式下的费用，请重新尝试或改为普通模式';
+        }
+        else if (error.message.includes('signal timed out')) {
           // 文本过长导致的超时情况
           const textLength = text.length;
           if (textLength > 10000) {
