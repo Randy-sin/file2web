@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Download, Copy, Check, RefreshCw, FileText, Archive, Globe, Link, ArrowDown, ArrowUp } from 'lucide-react';
-import JSZip from 'jszip';
+import { Download, Copy, Check, ArrowDown, ArrowUp, Globe } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface HtmlPreviewProps {
@@ -23,7 +22,6 @@ export default function HtmlPreview({ html, isMultiFile = false, files = null }:
   const [isLoading, setIsLoading] = useState(true);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [activeFile, setActiveFile] = useState<{name: string, content: string} | null>(null);
-  const [activeFileIndex, setActiveFileIndex] = useState(0);
   const [publishedUrl, setPublishedUrl] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
   const [urlCopied, setUrlCopied] = useState(false);
@@ -137,6 +135,11 @@ export default function HtmlPreview({ html, isMultiFile = false, files = null }:
     return htmlContent;
   };
 
+  // 处理文件选择
+  const handleFileSelect = (file: {name: string, content: string}, index: number) => {
+    setActiveFile(file);
+  };
+
   // 创建预览URL
   useEffect(() => {
     console.log('HtmlPreview组件收到HTML内容，长度:', html.length);
@@ -180,7 +183,6 @@ export default function HtmlPreview({ html, isMultiFile = false, files = null }:
       const mainFile = files.find(file => file.name === 'index.html') || files[0];
       const mainFileIndex = files.findIndex(file => file.name === mainFile.name);
       setActiveFile(mainFile);
-      setActiveFileIndex(mainFileIndex >= 0 ? mainFileIndex : 0);
     }
     
     setIsLoading(false);
@@ -251,159 +253,44 @@ export default function HtmlPreview({ html, isMultiFile = false, files = null }:
       return () => {
       window.removeEventListener('message', handleMessage);
     };
-  }, [files]);
+  }, [files, handleFileSelect]);
 
-  // 复制代码
+  // 复制代码到剪贴板
   const handleCopyCode = async () => {
     try {
-      let contentToCopy = isMultiFile && activeFile ? activeFile.content : html;
-      
-      // 清理HTML内容
-      contentToCopy = cleanHtmlContent(contentToCopy);
-      
-      await navigator.clipboard.writeText(contentToCopy);
+      await navigator.clipboard.writeText(activeFile?.content || html);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('复制失败:', err);
-      setError('复制到剪贴板失败');
     }
   };
 
-  // 下载当前文件
+  // 下载单个HTML文件
   const handleDownload = () => {
-    try {
-      if (isMultiFile && activeFile) {
-        // 下载当前活动文件
-        const cleanedContent = cleanHtmlContent(activeFile.content);
-        const blob = new Blob([cleanedContent], { type: 'text/html' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = activeFile.name;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      } else {
-        // 下载单个HTML文件
-        const cleanedContent = cleanHtmlContent(html);
-        const blob = new Blob([cleanedContent], { type: 'text/html' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'generated-webpage.html';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }
-    } catch (err) {
-      console.error('下载失败:', err);
-      setError('下载文件失败');
-    }
+    const element = document.createElement('a');
+    const file = new Blob([activeFile?.content || html], { type: 'text/html' });
+    element.href = URL.createObjectURL(file);
+    element.download = activeFile?.name || 'generated.html';
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
   };
 
-  // 下载所有文件为ZIP
-  const handleDownloadAllFiles = async () => {
-    if (!isMultiFile || !files || files.length === 0) return;
-    
-    try {
-      // 使用JSZip创建一个ZIP文件
-      const zip = new JSZip();
-      
-      // 添加所有文件到ZIP
-      files.forEach(file => {
-        zip.file(file.name, file.content);
-      });
-      
-      // 生成ZIP文件并下载
-      const content = await zip.generateAsync({type: 'blob'});
-      const url = URL.createObjectURL(content);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'generated-website.zip';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('创建ZIP文件失败:', err);
-      
-      // 如果JSZip不可用，则提供备选方案：逐个下载文件
-      if (confirm('无法创建ZIP文件。是否要逐个下载所有文件？')) {
-        files.forEach((file, index) => {
-          setTimeout(() => {
-            const blob = new Blob([file.content], { type: 'text/html' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = file.name;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-          }, index * 500); // 每个文件下载间隔500ms，避免浏览器阻止多个下载
-        });
-      }
-    }
-  };
-
-  // 刷新预览
-  const refreshPreview = () => {
-    if (iframeRef.current) {
-      setIsLoading(true);
-      
-      // 使用当前活动文件或HTML内容刷新预览
-      let contentToPreview = isMultiFile && activeFile ? activeFile.content : html;
-      
-      // 清理HTML内容
-      contentToPreview = cleanHtmlContent(contentToPreview);
-      
-          if (contentToPreview) {
-            const blob = new Blob([contentToPreview], { type: 'text/html' });
-            
-        // 清理之前的URL
-            if (previewUrl && previewUrl.startsWith('blob:')) {
-              URL.revokeObjectURL(previewUrl);
-            }
-            
-        const url = URL.createObjectURL(blob);
-            setPreviewUrl(url);
-            iframeRef.current.src = url;
-        console.log('已刷新预览URL:', url);
-          }
-
-    setIsLoading(false);
-    }
-  };
-
-  // 处理文件选择
-  const handleFileSelect = (file: {name: string, content: string}, index: number) => {
-    setActiveFile(file);
-    setActiveFileIndex(index);
-  };
-
-  // 在新窗口中打开预览
+  // 在新标签页中打开预览
   const openInNewTab = () => {
-    try {
-      let contentToPreview = isMultiFile && activeFile ? activeFile.content : html;
-      
-      // 清理HTML内容
-      contentToPreview = cleanHtmlContent(contentToPreview);
-      
-      // 打开新窗口
-      const previewWindow = window.open('', '_blank');
-      if (previewWindow) {
-        previewWindow.document.open();
-        previewWindow.document.write(contentToPreview);
-        previewWindow.document.close();
-      } else {
-        alert('无法打开新窗口，请允许弹出窗口');
+    if (activeFile) {
+      const newWindow = window.open();
+      if (newWindow) {
+        newWindow.document.write(activeFile.content);
+        newWindow.document.close();
       }
-    } catch (err) {
-      console.error('在新窗口打开预览失败:', err);
-      setError('在新窗口打开预览失败');
+    } else if (html) {
+      const newWindow = window.open();
+      if (newWindow) {
+        newWindow.document.write(html);
+        newWindow.document.close();
+      }
     }
   };
 

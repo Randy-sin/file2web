@@ -7,7 +7,7 @@ import Footer from '@/components/Footer';
 import Link from 'next/link';
 import AdManager from '@/components/AdManager';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowRight, FileText, Wand2, Sparkles, CheckCircle2, Code, Terminal, Braces, Zap, Brain, Layers, Cpu } from 'lucide-react';
+import { ArrowRight, FileText, Wand2, Sparkles, CheckCircle2, Code, Terminal, Braces, Zap, Brain, Layers, Cpu, ExternalLink } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function ConvertPage() {
@@ -266,7 +266,7 @@ export default function ConvertPage() {
                   </TabsTrigger>
                   <TabsTrigger value="examples" className="flex items-center gap-2 rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-gray-800 data-[state=active]:shadow-sm">
                     <Sparkles size={16} />
-                    <span>示例模板</span>
+                    <span>用户案例</span>
                   </TabsTrigger>
                   <TabsTrigger value="tips" className="flex items-center gap-2 rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-gray-800 data-[state=active]:shadow-sm">
                     <CheckCircle2 size={16} />
@@ -283,55 +283,72 @@ export default function ConvertPage() {
               
               <TabsContent value="examples" className="focus:outline-none">
                 <div className="bg-gray-50 dark:bg-gray-900 rounded-2xl p-6 shadow-lg border border-gray-100 dark:border-gray-700">
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">选择一个模板快速开始</h2>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">用户成功案例展示</h2>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* 示例模板卡片 */}
+                    {/* 用户案例卡片 */}
                     {[
                       { 
-                        title: '个人简介', 
-                        icon: <Code size={24} />,
+                        title: 'DeepSeek-R1官网', 
+                        description: 'AI模型技术展示官网',
+                        url: 'https://jqevvi6gr8.yourware.so/',
+                        icon: <Brain size={24} />,
                         color: 'from-blue-500 to-cyan-500'
                       },
                       { 
-                        title: '产品介绍', 
-                        icon: <Layers size={24} />,
+                        title: '小红书开发者平台', 
+                        description: '独立开发者生态与扶持政策',
+                        url: 'https://42ti5ytla5.yourware.so/',
+                        icon: <Code size={24} />,
                         color: 'from-purple-500 to-pink-500'
                       },
                       { 
-                        title: '活动页面', 
+                        title: '设计工作室官网', 
+                        description: '创意设计服务展示',
+                        url: 'https://novc6limig.yourware.so/',
                         icon: <Sparkles size={24} />,
                         color: 'from-amber-500 to-orange-500'
                       },
                       { 
-                        title: '公司简介', 
+                        title: '企业技术博客', 
+                        description: '技术分享与行业洞察',
+                        url: 'https://woqffa3oz9.yourware.so/',
                         icon: <Braces size={24} />,
                         color: 'from-emerald-500 to-teal-500'
                       },
                       { 
-                        title: '博客文章', 
+                        title: '教育课程平台', 
+                        description: '在线学习资源集合',
+                        url: 'https://ehe9lf1kzt.yourware.so/',
                         icon: <Terminal size={24} />,
                         color: 'from-rose-500 to-red-500'
                       },
                       { 
-                        title: '服务介绍', 
+                        title: '产品官网', 
+                        description: '创新产品功能与特性展示',
+                        url: 'https://1ubefo93uv.yourware.so/',
                         icon: <Zap size={24} />,
                         color: 'from-indigo-500 to-violet-500'
                       }
-                    ].map((template, index) => (
+                    ].map((example, index) => (
                       <motion.div 
                         key={index} 
                         className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all cursor-pointer group"
                         whileHover={{ y: -5 }}
+                        onClick={() => window.open(example.url, '_blank')}
                       >
-                        <div className={`h-32 bg-gradient-to-r ${template.color} relative flex items-center justify-center`}>
+                        <div className={`h-32 bg-gradient-to-r ${example.color} relative flex items-center justify-center`}>
                           <div className="text-white">
-                            {template.icon}
+                            {example.icon}
                           </div>
                           <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-20 transition-opacity"></div>
                         </div>
                         <div className="p-4">
-                          <h3 className="font-medium text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{template.title}</h3>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">点击使用此模板</p>
+                          <h3 className="font-medium text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{example.title}</h3>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{example.description}</p>
+                          <div className="flex items-center text-xs text-blue-500 mt-2">
+                            <span className="truncate">{example.url}</span>
+                            <ExternalLink size={12} className="ml-1 flex-shrink-0" />
+                          </div>
                         </div>
                       </motion.div>
                     ))}
@@ -389,7 +406,7 @@ export default function ConvertPage() {
             {/* 底部帮助链接 */}
             <div className="mt-8 text-center">
               <p className="text-gray-600 dark:text-gray-400">
-                不确定如何使用？查看我们的<Link href="/#how-it-works" className="text-blue-600 hover:underline">使用指南</Link>或尝试<button onClick={() => setActiveTab('examples')} className="text-blue-600 hover:underline">示例模板</button>。
+                不确定如何使用？查看我们的<Link href="/#how-it-works" className="text-blue-600 hover:underline">使用指南</Link>或查看<button onClick={() => setActiveTab('examples')} className="text-blue-600 hover:underline">用户案例</button>。
               </p>
             </div>
           </div>

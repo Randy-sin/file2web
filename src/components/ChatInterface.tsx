@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, Check, ExternalLink, Loader2, Sparkles, RefreshCw, Cpu, MessageSquare, X, ChevronDown, 
-  Download, Copy, Archive, Globe, FileText, Link, ArrowLeft, ChevronRight, Code, Layout, Server, Eye } from 'lucide-react';
+import { AlertTriangle, Check, ExternalLink, Loader2, Sparkles, RefreshCw, MessageSquare, ChevronDown, 
+  Copy, FileText, ArrowLeft, ChevronRight, Code, Layout, Server, Eye } from 'lucide-react';
 import HtmlPreview from './HtmlPreview';
 
 // 添加自定义样式
@@ -35,7 +35,7 @@ type MessageType = 'user' | 'ai' | 'system' | 'code' | 'api-response';
 // 定义API响应类型
 interface ApiResponse {
   step: string;
-  data: any;
+  data: Record<string, unknown>;
   preview?: string;
   timestamp?: string;
   htmlPreview?: string;
@@ -63,14 +63,12 @@ interface ChatInterfaceProps {
   userInput: string;
   isGenerating: boolean;
   generationStatus: GenerationStatus;
-  generationStep: string;
   generationProgress: number;
   generationTotal: number;
   generationMessage: string;
   generatedHtml: string | null;
   error: string | null;
   onRegenerate: () => void;
-  onViewPreview: () => void;
   generatedFiles?: Array<{name: string, content: string}> | null;
   isMultiFile?: boolean;
   apiResponses?: Array<ApiResponse>;
@@ -481,25 +479,25 @@ export default function ChatInterface({
   userInput,
   isGenerating,
   generationStatus,
-  generationStep,
   generationProgress,
   generationTotal,
   generationMessage,
   generatedHtml,
   error,
   onRegenerate,
-  onViewPreview,
   generatedFiles = null,
   isMultiFile = false,
   apiResponses = []
 }: ChatInterfaceProps) {
+  // 内部状态
   const [messages, setMessages] = useState<Message[]>([]);
+  const [isMessageContainerExpanded, setIsMessageContainerExpanded] = useState<boolean>(true);
+  const [showPreview, setShowPreview] = useState<boolean>(false);
   const [typingSpeed, setTypingSpeed] = useState<number>(30); // 打字速度，单位为毫秒
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const [isMessageContainerExpanded, setIsMessageContainerExpanded] = useState<boolean>(true);
-  const [showPreview, setShowPreview] = useState<boolean>(false);
-  const [hasViewedPlanning, setHasViewedPlanning] = useState<boolean>(false);
+  const [isPlanningComplete, setIsPlanningComplete] = useState<boolean>(false);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
 
   // 自动显示预览 - 当生成完成时
   useEffect(() => {
@@ -511,37 +509,16 @@ export default function ChatInterface({
     }
   }, [generationStatus, generatedHtml]);
 
-  // 检查是否有规划步骤的API响应
-  const planningResponse = apiResponses.find(resp => resp.step === 'planning');
-  const isPlanningComplete = !!planningResponse || 
-    generationMessage.includes('规划已完成') || 
-    generationMessage.includes('内容分析和规划已完成');
-  
-  // 处理查看规划详情的函数
-  const handleViewPlanningDetails = () => {
-    // 标记用户已查看规划
-    setHasViewedPlanning(true);
-    
-    // 找到第一条规划消息并展开显示
-    const planningMsg = messages.find(
-      msg => msg.type === 'api-response' && msg.apiResponse?.step === 'planning'
-    );
-    if (planningMsg) {
-      // 滚动到该消息位置
-      const msgElement = document.getElementById(`message-${planningMsg.id}`);
-      if (msgElement) {
-        msgElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        // 在滚动完成后高亮该消息
-        setTimeout(() => {
-          msgElement.classList.add('highlight-pulse');
-          // 3秒后移除高亮效果
-          setTimeout(() => {
-            msgElement.classList.remove('highlight-pulse');
-          }, 3000);
-        }, 500);
-      }
+  // 找到规划响应
+  const planningResponse = apiResponses.find(r => r.step === 'planning');
+
+  // 当API响应变化时检查规划状态
+  useEffect(() => {
+    // 如果有规划响应，设置规划完成状态
+    if (planningResponse) {
+      setIsPlanningComplete(true);
     }
-  };
+  }, [planningResponse]);
 
   // 注入自定义样式
   useEffect(() => {
@@ -755,7 +732,7 @@ export default function ChatInterface({
   useEffect(() => {
     if (apiResponses.length > 0) {
       // 创建一个新的消息数组
-      let newMessages: Message[] = [];
+      const newMessages: Message[] = [];
       
       // 始终包含用户消息
       const userMsg = messages.find(m => m.id === 'user-input');
@@ -848,292 +825,7 @@ export default function ChatInterface({
       // 更新消息数组
       setMessages(newMessages);
     }
-  }, [apiResponses, generationStatus, error]);
-
-  // 渲染消息
-  const renderMessage = (message: Message) => {
-    switch (message.type) {
-      case 'api-response':
-        if (message.apiResponse) {
-          return (
-            <div id={`message-${message.id}`} className="w-full mb-2 transition-all duration-300">
-              <ApiResponseDisplay 
-                response={message.apiResponse} 
-                isExpanded={message.apiResponse.step === 'planning'} 
-              />
-              {message.nextStep && (
-                <StepConnector />
-              )}
-            </div>
-          );
-        }
-        return null;
-        
-      case 'user':
-        return (
-          <div 
-            id={`message-${message.id}`}
-            className={`p-3 rounded-lg max-w-[85%] bg-blue-100 dark:bg-blue-900/30 text-gray-800 dark:text-gray-200 transition-all duration-300`}
-          >
-            {message.displayContent || message.content}
-          </div>
-        );
-        
-      case 'system':
-        return (
-          <div 
-            id={`message-${message.id}`}
-            className={`p-3 rounded-lg max-w-[85%] transition-all duration-300 ${
-            message.id.includes('error')
-              ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'
-          }`}>
-            {message.displayContent || message.content}
-          </div>
-        );
-        
-      case 'code':
-        return (
-          <div className="p-3 rounded-lg max-w-[85%] bg-gray-800 dark:bg-gray-950 text-gray-200 dark:text-gray-100 font-mono text-sm overflow-x-auto">
-            <pre>{message.displayContent || message.content}</pre>
-          </div>
-        );
-        
-      default:
-        return (
-          <div className={`p-3 rounded-lg max-w-[85%] bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200`}>
-            {message.displayContent || message.content}
-          </div>
-        );
-    }
-  };
-
-  // 渲染状态指示器
-  const renderStatusIndicator = () => {
-    // 在规划阶段显示规划状态
-    if (generationStatus === 'planning') {
-      return (
-        <div className="flex flex-col items-center">
-          {!isPlanningComplete ? (
-            // 规划进行中状态
-            <>
-              <div className="flex items-center text-yellow-600 dark:text-yellow-400 font-medium">
-                <Sparkles size={18} className="mr-2 animate-pulse" />
-                <span>内容分析中</span>
-              </div>
-              <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                AI正在理解您的内容并规划网站结构
-              </div>
-            </>
-          ) : (
-            // 规划完成状态 - 添加可交互元素
-            <>
-              <div className="flex items-center text-emerald-600 dark:text-emerald-400 font-medium">
-                <Check size={18} className="mr-2" />
-                <span>内容分析和规划已完成</span>
-              </div>
-              <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                AI已分析您的内容并规划了网站结构
-              </div>
-              <button 
-                onClick={handleViewPlanningDetails}
-                className="mt-3 px-4 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-full text-sm font-medium shadow-sm transition-all hover:shadow flex items-center"
-              >
-                <Eye size={14} className="mr-1.5" />
-                查看规划详情
-              </button>
-            </>
-          )}
-        </div>
-      );
-    }
-    
-    // 在生成阶段，如果规划已完成但用户未查看，显示规划完成提示
-    if (generationStatus === 'generating' && isPlanningComplete && !hasViewedPlanning && planningResponse) {
-      const percentage = generationTotal > 0 
-        ? Math.round((generationProgress / generationTotal) * 100) 
-        : 0;
-      
-      return (
-        <div className="flex flex-col items-center">
-          <div className="flex items-center text-blue-600 dark:text-blue-400 font-medium">
-            <Loader2 size={18} className="mr-2 animate-spin" />
-            <span>生成中</span>
-            {generationTotal > 0 && (
-              <span className="ml-2 text-sm">{percentage}%</span>
-            )}
-          </div>
-          
-          {/* 添加规划完成提示 */}
-          <div className="mt-3 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
-            <div className="flex items-center text-emerald-600 dark:text-emerald-400 font-medium mb-1">
-              <Check size={16} className="mr-1.5" />
-              <span>规划已完成</span>
-            </div>
-            <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-              您可以查看AI如何规划网站结构
-            </p>
-            <button 
-              onClick={handleViewPlanningDetails}
-              className="w-full px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-md text-sm font-medium shadow-sm transition-all hover:shadow flex items-center justify-center"
-            >
-              <Eye size={14} className="mr-1.5" />
-              查看规划详情
-            </button>
-          </div>
-          
-          <div className="w-full mt-3">
-            {generationTotal > 0 && (
-              <div className="w-full h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-300 ease-out"
-                  style={{ width: `${percentage}%` }}
-                />
-              </div>
-            )}
-            {generationMessage && (
-              <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
-                {generationMessage}
-              </div>
-            )}
-          </div>
-        </div>
-      );
-    }
-    
-    // 常规生成状态
-    switch (generationStatus) {
-      case 'generating':
-        const percentage = generationTotal > 0 
-          ? Math.round((generationProgress / generationTotal) * 100) 
-          : 0;
-        
-        return (
-          <div className="flex flex-col items-center">
-            <div className="flex items-center text-blue-600 dark:text-blue-400 font-medium">
-              <Loader2 size={18} className="mr-2 animate-spin" />
-              <span>生成中</span>
-              {generationTotal > 0 && (
-                <span className="ml-2 text-sm">{percentage}%</span>
-              )}
-            </div>
-            <div className="w-full mt-2">
-              {generationTotal > 0 && (
-                <div className="w-full h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-300 ease-out"
-                    style={{ width: `${percentage}%` }}
-                  />
-                </div>
-              )}
-              {generationMessage && (
-                <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
-                  {generationMessage}
-                </div>
-              )}
-            </div>
-          </div>
-        );
-        
-      case 'complete':
-        return (
-          <div className="flex flex-col items-center">
-            <div className="flex items-center text-green-600 dark:text-green-400 font-medium">
-              <Check size={18} className="mr-2" />
-              <span>生成完成</span>
-            </div>
-            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-              您的网页已准备就绪，可以预览和下载
-            </div>
-          </div>
-        );
-        
-      case 'error':
-        return (
-          <div className="flex flex-col items-center">
-            <div className="flex items-center text-red-600 dark:text-red-400 font-medium">
-              <AlertTriangle size={18} className="mr-2" />
-              <span>生成失败</span>
-            </div>
-            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-              很抱歉，网页生成过程中出现错误
-            </div>
-          </div>
-        );
-        
-      default:
-        return (
-          <div className="flex flex-col items-center">
-            <div className="flex items-center text-gray-600 dark:text-gray-400 font-medium">
-              <MessageSquare size={18} className="mr-2" />
-              <span>等待开始</span>
-            </div>
-            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-              准备开始生成您的网页
-            </div>
-          </div>
-        );
-    }
-  };
-
-  // 渲染操作按钮
-  const renderActions = () => {
-    if (generationStatus === 'complete') {
-      return (
-        <div className="flex gap-2">
-          <motion.button
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            className="flex items-center px-4 py-2 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-800/40 transition-colors shadow-sm"
-            onClick={onRegenerate}
-          >
-            <RefreshCw size={16} className="mr-1.5" />
-            重新生成
-          </motion.button>
-        </div>
-      );
-    } else if (generationStatus === 'error') {
-      return (
-        <motion.button
-          whileHover={{ scale: 1.03 }}
-          whileTap={{ scale: 0.97 }}
-          className="flex items-center px-4 py-2 rounded-full bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-800/40 transition-colors shadow-sm"
-          onClick={onRegenerate}
-        >
-          <RefreshCw size={16} className="mr-1.5" />
-          重新生成
-        </motion.button>
-      );
-    }
-    
-    return null;
-  };
-
-  // 切换消息容器展开/折叠状态
-  const toggleMessageContainer = () => {
-    setIsMessageContainerExpanded(!isMessageContainerExpanded);
-  };
-
-  // 关闭预览
-  const handleClosePreview = () => {
-    setShowPreview(false);
-    setIsMessageContainerExpanded(true);
-  };
-
-  // 获取主标题文本
-  const getHeaderTitle = () => {
-    if (generationStatus === 'planning') {
-      return "AI内容分析";
-    } else if (generationStatus === 'generating') {
-      return "网页生成中";
-    } else if (generationStatus === 'complete') {
-      return "生成完成";
-    } else if (generationStatus === 'error') {
-      return "生成失败";
-    } else {
-      return "内容";
-    }
-  };
+  }, [apiResponses, generationStatus, error, messages, isPlanningComplete, generatedHtml, generationMessage, generationProgress, generationTotal]);
 
   return (
     <div className="h-full flex flex-col overflow-hidden">

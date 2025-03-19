@@ -73,7 +73,6 @@ export default function TextEditor() {
 
   // 分步生成相关状态
   const [generationStep, setGenerationStep] = useState<string>('planning');
-  const [generationPlan, setGenerationPlan] = useState<Record<string, unknown> | null>({});
   const [generationProgress, setGenerationProgress] = useState<number>(0);
   const [generationTotal, setGenerationTotal] = useState<number>(0);
   const [generationMessage, setGenerationMessage] = useState<string>('');
@@ -83,7 +82,7 @@ export default function TextEditor() {
   // 添加API响应内容的状态
   const [apiResponses, setApiResponses] = useState<Array<{
     step: string;
-    data: any;
+    data: Record<string, unknown>;
     preview?: string;
     timestamp: string;
     htmlPreview?: string;
@@ -153,7 +152,6 @@ export default function TextEditor() {
     
     // 重置分步生成状态
     setGenerationStep('planning');
-    setGenerationPlan(null);
     setGenerationProgress(0);
     setGenerationTotal(0);
     setGenerationMessage('');
@@ -261,7 +259,6 @@ export default function TextEditor() {
       }, 100);
       
       // 更新规划和进度
-      setGenerationPlan(planningData.plan);
       setGenerationTotal(planningData.plan.files.length);
       setGenerationProgress(0);
       
@@ -814,14 +811,12 @@ export default function TextEditor() {
                   userInput={text}
                   isGenerating={isLoading}
                   generationStatus={generationStatus}
-                  generationStep={generationStep}
                   generationProgress={generationProgress}
                   generationTotal={generationTotal}
                   generationMessage={generationMessage}
                   generatedHtml={generatedHtml}
                   error={error}
                   onRegenerate={handleRegenerate}
-                  onViewPreview={handleViewPreview}
                   generatedFiles={generatedFiles}
                   isMultiFile={isMultiFile}
                   apiResponses={apiResponses}

@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface SplitViewProps {
   leftContent: React.ReactNode;
@@ -10,7 +9,6 @@ interface SplitViewProps {
   initialLeftWidth?: number; // 初始左侧宽度百分比
   minLeftWidth?: number; // 最小左侧宽度百分比
   maxLeftWidth?: number; // 最大左侧宽度百分比
-  showDivider?: boolean; // 是否显示分隔线
   isGenerating?: boolean; // 生成中状态标志
   showBlurOverlay?: boolean; // 是否显示模糊遮罩
 }
@@ -26,7 +24,6 @@ export default function SplitView({
   initialLeftWidth = 40, // 默认40%
   minLeftWidth = 20, // 默认最小20%
   maxLeftWidth = 60, // 默认最大60%
-  showDivider = true,
   isGenerating = false,
   showBlurOverlay = true
 }: SplitViewProps) {
@@ -108,7 +105,10 @@ export default function SplitView({
     };
   }, [isDragging, minLeftWidth, maxLeftWidth]);
 
-  // 切换折叠状态
+  /**
+   * 切换折叠状态的函数
+   * @unused 当前未使用，保留用于将来可能添加的折叠/展开功能
+   */
   const toggleCollapse = () => {
     if (isCollapsed) {
       // 展开
