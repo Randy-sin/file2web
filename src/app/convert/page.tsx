@@ -344,13 +344,26 @@ export default function ConvertPage() {
                         onClick={() => window.open(example.url, '_blank')}
                       >
                         <div className="h-48 relative overflow-hidden">
-                          <Image 
-                            src={example.image} 
-                            alt={example.title}
-                            fill
-                            sizes="(max-width: 768px) 100vw, 33vw"
-                            className="object-cover transition-transform group-hover:scale-105"
-                          />
+                          {example.image === '/example1-deepseek.png' || example.image === '/example6-food.png' ? (
+                            // 对问题图片使用img标签直接渲染
+                            <img 
+                              src={example.image}
+                              alt={example.title}
+                              className="absolute inset-0 w-full h-full object-cover transition-transform group-hover:scale-105"
+                            />
+                          ) : (
+                            // 其他图片使用Next.js Image组件
+                            <Image 
+                              src={example.image} 
+                              alt={example.title}
+                              fill
+                              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw, 400px"
+                              className="object-cover transition-transform group-hover:scale-105"
+                              priority={index < 2}
+                              loading={index < 2 ? "eager" : "lazy"}
+                              quality={90}
+                            />
+                          )}
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                           <div className="absolute bottom-3 left-3 flex items-center space-x-2">
                             <div className="p-1.5 rounded-lg bg-white/90 text-gray-800">
