@@ -302,8 +302,8 @@ export default function ConvertPage() {
                         color: 'from-purple-500 to-pink-500'
                       },
                       { 
-                        title: '设计工作室官网', 
-                        description: '创意设计服务展示',
+                        title: 'Polaroid相机官网', 
+                        description: '复古拍立得相机产品展示',
                         url: 'https://novc6limig.yourware.so/',
                         icon: <Sparkles size={24} />,
                         color: 'from-amber-500 to-orange-500'
@@ -316,15 +316,15 @@ export default function ConvertPage() {
                         color: 'from-emerald-500 to-teal-500'
                       },
                       { 
-                        title: '教育课程平台', 
-                        description: '在线学习资源集合',
+                        title: '京都旅游指南', 
+                        description: '日本京都旅行攻略与景点介绍',
                         url: 'https://ehe9lf1kzt.yourware.so/',
                         icon: <Terminal size={24} />,
                         color: 'from-rose-500 to-red-500'
                       },
                       { 
-                        title: '产品官网', 
-                        description: '创新产品功能与特性展示',
+                        title: '美食记忆网站', 
+                        description: '全球美食文化与烹饪技巧分享',
                         url: 'https://1ubefo93uv.yourware.so/',
                         icon: <Zap size={24} />,
                         color: 'from-indigo-500 to-violet-500'
