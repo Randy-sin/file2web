@@ -827,7 +827,7 @@ export default function ChatInterface({
     }
   }, [apiResponses, generationStatus, error, messages, isPlanningComplete, generatedHtml, generationMessage, generationProgress, generationTotal]);
 
-  return (
+        return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* 头部导航 */}
       <div className="flex items-center p-4 border-b border-gray-200 dark:border-gray-700">
@@ -867,7 +867,7 @@ export default function ChatInterface({
               ) : generationStatus === 'error' ? (
                 <div className="bg-red-100 dark:bg-red-900/30 p-4 rounded-full">
                   <AlertTriangle className="text-red-500" size={32} />
-                </div>
+              </div>
               ) : null}
               
               <h3 className="mt-4 text-xl font-medium text-gray-900 dark:text-gray-100">
@@ -891,7 +891,7 @@ export default function ChatInterface({
                       className="bg-blue-500 h-2.5 rounded-full" 
                       style={{ width: `${Math.round((generationProgress / generationTotal) * 100)}%` }}
                     ></div>
-                  </div>
+            </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-center">
                     {generationProgress}/{generationTotal} 文件完成
                   </p>
@@ -927,28 +927,28 @@ export default function ChatInterface({
                 {/* 消息列表已在前面实现 */}
               </div>
             </motion.div>
-          )}
+      )}
         </AnimatePresence>
-        
+      
         {/* 预览容器 */}
-        <AnimatePresence mode="wait">
+      <AnimatePresence mode="wait">
           {showPreview && generatedHtml && (
-            <motion.div
-              key="preview-container"
+          <motion.div 
+            key="preview-container"
               className="flex-grow bg-white dark:bg-gray-900 overflow-auto w-full"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <HtmlPreview 
-                html={generatedHtml} 
-                isMultiFile={isMultiFile} 
-                files={generatedFiles}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+                <HtmlPreview 
+                  html={generatedHtml} 
+                  isMultiFile={isMultiFile} 
+                  files={generatedFiles} 
+                />
+          </motion.div>
+        )}
+      </AnimatePresence>
       </div>
     </div>
   );

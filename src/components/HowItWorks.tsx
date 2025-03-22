@@ -2,17 +2,28 @@
 
 import { motion } from 'framer-motion';
 import { ArrowRight, MousePointer, Eye, Download, FileText } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import Image from 'next/image';
 
 export default function HowItWorks() {
   const [isInView, setIsInView] = useState(false);
+  const [videoLoaded, setVideoLoaded] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
   
-  // 监听滚动，当组件进入视图时触发动画
+  // 监听滚动，当组件进入视图时触发动画和延迟加载视频
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
           setIsInView(true);
+          
+          // 当组件进入视图后，延迟加载视频
+          setTimeout(() => {
+            if (videoRef.current) {
+              videoRef.current.src = "/file2webexample.mp4";
+              videoRef.current.load();
+            }
+          }, 1000); // 延迟1秒加载视频，优先加载其他内容
         }
       },
       { threshold: 0.2 }
@@ -30,24 +41,29 @@ export default function HowItWorks() {
     };
   }, []);
   
-  // 动画变体
+  // 处理视频加载完成事件
+  const handleVideoLoaded = () => {
+    setVideoLoaded(true);
+  };
+  
+  // 简化动画变体
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.2,
-        delayChildren: 0.3
+        staggerChildren: 0.15,
+        delayChildren: 0.2
       }
     }
   };
   
   const itemVariants = {
-    hidden: { y: 30, opacity: 0 },
+    hidden: { y: 20, opacity: 0 },
     visible: {
       y: 0,
       opacity: 1,
-      transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] }
+      transition: { duration: 0.4, ease: "easeOut" }
     }
   };
   
@@ -89,9 +105,13 @@ export default function HowItWorks() {
       <div className="absolute top-0 left-0 w-full h-40 bg-gradient-to-b from-white to-transparent dark:from-gray-900 dark:to-transparent -z-10"></div>
       <div className="absolute bottom-0 left-0 w-full h-40 bg-gradient-to-t from-white to-transparent dark:from-gray-900 dark:to-transparent -z-10"></div>
       
-      {/* 装饰性几何图形 */}
-      <div className="absolute top-20 right-[5%] w-64 h-64 bg-blue-200/20 dark:bg-blue-900/10 rounded-full blur-3xl -z-10"></div>
-      <div className="absolute bottom-20 left-[5%] w-64 h-64 bg-purple-200/20 dark:bg-purple-900/10 rounded-full blur-3xl -z-10"></div>
+      {/* 装饰性几何图形 - 只在视图内才显示 */}
+      {isInView && (
+        <>
+          <div className="absolute top-20 right-[5%] w-64 h-64 bg-blue-200/20 dark:bg-blue-900/10 rounded-full blur-3xl -z-10"></div>
+          <div className="absolute bottom-20 left-[5%] w-64 h-64 bg-purple-200/20 dark:bg-purple-900/10 rounded-full blur-3xl -z-10"></div>
+        </>
+      )}
       
       <div className="container mx-auto px-4 relative">
         <motion.div 
@@ -137,20 +157,20 @@ export default function HowItWorks() {
                   {step.description}
                 </p>
                 
-                {/* 连接线 */}
+                {/* 连接线 - 简化动画，减少计算量 */}
                 {index < steps.length - 1 && (
                   <div className="hidden lg:block absolute top-1/2 right-0 transform translate-x-1/2 -translate-y-1/2 z-0">
                     <motion.div 
                       className="w-12 h-[2px] bg-gradient-to-r from-blue-500 to-transparent"
                       initial={{ width: 0 }}
                       animate={isInView ? { width: 48 } : { width: 0 }}
-                      transition={{ delay: 0.5 + index * 0.2, duration: 0.8 }}
+                      transition={{ delay: 0.3 + index * 0.1, duration: 0.5 }}
                     />
                     <motion.div 
                       className="absolute right-0 top-1/2 -translate-y-1/2 text-blue-500"
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={isInView ? { opacity: 1, x: 0 } : { opacity: 0, x: -10 }}
-                      transition={{ delay: 0.7 + index * 0.2, duration: 0.5 }}
+                      initial={{ opacity: 0 }}
+                      animate={isInView ? { opacity: 1 } : { opacity: 0 }}
+                      transition={{ delay: 0.4 + index * 0.1, duration: 0.3 }}
                     >
                       <ArrowRight size={16} />
                     </motion.div>
@@ -167,9 +187,13 @@ export default function HowItWorks() {
           animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
           transition={{ delay: 0.4, duration: 0.8 }}
         >
-          {/* 装饰性背景元素 */}
-          <div className="absolute top-0 right-0 w-1/3 h-1/3 bg-gradient-to-br from-blue-500/10 to-purple-500/10 dark:from-blue-500/20 dark:to-purple-500/20 rounded-full blur-3xl -z-10 transform translate-x-1/2 -translate-y-1/2"></div>
-          <div className="absolute bottom-0 left-0 w-1/3 h-1/3 bg-gradient-to-br from-teal-500/10 to-emerald-500/10 dark:from-teal-500/20 dark:to-emerald-500/20 rounded-full blur-3xl -z-10 transform -translate-x-1/2 translate-y-1/2"></div>
+          {/* 装饰性背景元素 - 只在视图内才显示 */}
+          {isInView && (
+            <>
+              <div className="absolute top-0 right-0 w-1/3 h-1/3 bg-gradient-to-br from-blue-500/10 to-purple-500/10 dark:from-blue-500/20 dark:to-purple-500/20 rounded-full blur-3xl -z-10 transform translate-x-1/2 -translate-y-1/2"></div>
+              <div className="absolute bottom-0 left-0 w-1/3 h-1/3 bg-gradient-to-br from-teal-500/10 to-emerald-500/10 dark:from-teal-500/20 dark:to-emerald-500/20 rounded-full blur-3xl -z-10 transform -translate-x-1/2 translate-y-1/2"></div>
+            </>
+          )}
           
           <div className="flex flex-col md:flex-row items-stretch p-8 md:p-12">
             <div className="md:w-1/2 mb-8 md:mb-0 md:pr-12 flex flex-col justify-center">
@@ -200,16 +224,29 @@ export default function HowItWorks() {
                 whileHover={{ scale: 1.02 }}
               >
                 <div className="aspect-video relative bg-gray-100 dark:bg-gray-700 overflow-hidden">
-                  <video 
-                    src="/file2webexample.mp4" 
-                    controls
-                    autoPlay
-                    muted
-                    loop
-                    playsInline
-                    className="w-full h-full object-cover"
-                    poster="/example.png"
-                  />
+                  {/* 使用占位图片，视频延迟加载 */}
+                  <div className="relative w-full h-full">
+                    <Image
+                      src="/example.png"
+                      alt="File2Web 示例"
+                      fill
+                      sizes="(max-width: 768px) 100vw, 600px"
+                      className={`object-cover transition-opacity duration-300 ${videoLoaded ? 'opacity-0' : 'opacity-100'}`}
+                      priority={false}
+                    />
+                    
+                    <video 
+                      ref={videoRef}
+                      preload="none"
+                      controls
+                      muted
+                      loop
+                      playsInline
+                      className={`w-full h-full object-cover transition-opacity duration-300 ${videoLoaded ? 'opacity-100' : 'opacity-0'}`}
+                      poster="/example.png"
+                      onLoadedData={handleVideoLoaded}
+                    />
+                  </div>
                   
                   {/* 视频控制覆盖层 */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 flex items-end">
