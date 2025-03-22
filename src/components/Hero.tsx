@@ -14,7 +14,7 @@ export default function Hero() {
   const throttleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // 鼠标移动事件节流函数
-  const throttle = (callback: Function, delay: number) => {
+  const throttle = (callback: () => void, delay: number) => {
     if (throttleTimeoutRef.current) return;
     
     throttleTimeoutRef.current = setTimeout(() => {
