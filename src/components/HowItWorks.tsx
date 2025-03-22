@@ -9,6 +9,7 @@ export default function HowItWorks() {
   const [isInView, setIsInView] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const throttleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // 监听滚动，当组件进入视图时触发动画和延迟加载视频
   useEffect(() => {
@@ -97,6 +98,24 @@ export default function HowItWorks() {
       color: 'from-amber-500 to-orange-600'
     }
   ];
+
+  const throttle = (callback: Function, delay: number) => {
+    if (throttleTimeoutRef.current) return;
+    
+    throttleTimeoutRef.current = setTimeout(() => {
+      callback();
+      throttleTimeoutRef.current = null;
+    }, delay);
+  };
+
+  const throttleCallback = () => {
+    if (throttleTimeoutRef.current) return;
+    
+    throttleTimeoutRef.current = setTimeout(() => {
+      handleVideoLoaded();
+      throttleTimeoutRef.current = null;
+    }, 1000);
+  };
 
   return (
     <section id="how-it-works" className="py-24 relative overflow-hidden">
@@ -223,33 +242,33 @@ export default function HowItWorks() {
                 transition={{ delay: 0.8, duration: 0.8 }}
                 whileHover={{ scale: 1.02 }}
               >
+                {/* 视频播放区域 - 简化层级结构 */}
                 <div className="aspect-video relative bg-gray-100 dark:bg-gray-700 overflow-hidden">
-                  {/* 使用占位图片，视频延迟加载 */}
-                  <div className="relative w-full h-full">
-                    <Image
-                      src="/example.png"
-                      alt="File2Web 示例"
-                      fill
-                      sizes="(max-width: 768px) 100vw, 600px"
-                      className={`object-cover transition-opacity duration-300 ${videoLoaded ? 'opacity-0' : 'opacity-100'}`}
-                      priority={false}
-                    />
-                    
-                    <video 
-                      ref={videoRef}
-                      preload="none"
-                      controls
-                      muted
-                      loop
-                      playsInline
-                      className={`w-full h-full object-cover transition-opacity duration-300 ${videoLoaded ? 'opacity-100' : 'opacity-0'}`}
-                      poster="/example.png"
-                      onLoadedData={handleVideoLoaded}
-                    />
-                  </div>
+                  {/* 占位图片 */}
+                  <Image
+                    src="/example.png"
+                    alt="File2Web 示例"
+                    fill
+                    sizes="(max-width: 768px) 100vw, 600px"
+                    className={`object-cover transition-opacity duration-300 ${videoLoaded ? 'opacity-0' : 'opacity-100'} z-10`}
+                    priority={false}
+                  />
                   
-                  {/* 视频控制覆盖层 */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 flex items-end">
+                  {/* 视频播放器，提高z-index确保可点击 */}
+                  <video 
+                    ref={videoRef}
+                    preload="none"
+                    controls
+                    muted
+                    loop
+                    playsInline
+                    className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${videoLoaded ? 'opacity-100' : 'opacity-0'} z-20`}
+                    poster="/example.png"
+                    onLoadedData={throttleCallback}
+                  />
+                  
+                  {/* 视频标题覆盖层，添加pointer-events-none避免干扰视频控件 */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 flex items-end z-10 pointer-events-none">
                     <div className="p-4 text-white">
                       <p className="text-sm font-medium">File2Web 演示视频</p>
                     </div>
