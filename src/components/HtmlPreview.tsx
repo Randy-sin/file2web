@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Download, Copy, Check, ArrowDown, ArrowUp, Globe } from 'lucide-react';
+import { Download, Copy, Check, ArrowDown, ArrowUp, Globe, ExternalLink } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { PromptViewer } from './prompt-viewer';
 
 interface HtmlPreviewProps {
   html: string;
@@ -28,6 +29,8 @@ export default function HtmlPreview({ html, isMultiFile = false, files = null, a
   const [isPublishing, setIsPublishing] = useState(false);
   const [urlCopied, setUrlCopied] = useState(false);
   const [codeExpanded, setCodeExpanded] = useState(true);
+  const [promptText, setPromptText] = useState<string>('');
+  const [isLoadingPrompt, setIsLoadingPrompt] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // 清理HTML内容，移除代码块标记
@@ -439,6 +442,27 @@ export default function HtmlPreview({ html, isMultiFile = false, files = null, a
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoPublish, html, isPublishing, publishedUrl]);
 
+  // 获取系统提示词
+  const fetchSystemPrompt = async () => {
+    setIsLoadingPrompt(true);
+    try {
+      // 如果没有加载过提示词，从API获取
+      if (!promptText) {
+        const response = await fetch(`/api/prompt-preview`);
+        if (!response.ok) {
+          throw new Error('获取系统提示词失败');
+        }
+        const data = await response.json();
+        setPromptText(data.prompt);
+      }
+    } catch (err) {
+      console.error('获取系统提示词时出错:', err);
+      setPromptText('无法加载系统提示词，请稍后再试。');
+    } finally {
+      setIsLoadingPrompt(false);
+    }
+  };
+
   return (
     <div className="mt-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden border border-gray-100 dark:border-gray-700">
       {/* 简化标题和操作区域 */}
@@ -485,25 +509,33 @@ export default function HtmlPreview({ html, isMultiFile = false, files = null, a
             <span className="text-sm">新窗口打开</span>
           </motion.button>
           
+          {/* 添加系统提示词查看按钮 */}
+          <PromptViewer 
+            systemPrompt={promptText || '加载中...'}
+            buttonText="查看系统提示词"
+            dialogTitle={`${isMultiFile ? '高性能模式' : '标准模式'}系统提示词`}
+            onOpen={fetchSystemPrompt}
+          />
+          
           <motion.button
             onClick={publishWebsite}
             disabled={isPublishing}
-            whileHover={isPublishing ? {} : { scale: 1.05 }}
-            whileTap={isPublishing ? {} : { scale: 0.95 }}
-            className={`inline-flex items-center justify-center h-9 px-3 rounded-md ${
-              publishedUrl 
-                ? 'bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400 hover:bg-teal-100 dark:hover:bg-teal-900/30 border border-teal-100 dark:border-teal-800/50' 
-                : 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800/50'
-            } transition-all shadow-sm ${isPublishing ? 'opacity-70 cursor-not-allowed' : ''}`}
-            title={publishedUrl ? '打开已发布网页' : '发布到网络'}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="inline-flex items-center justify-center h-9 px-3 rounded-md bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-all border border-purple-100 dark:border-purple-800/50 shadow-sm"
+            title={publishedUrl ? '查看已发布的网页' : '发布到网络并获取链接'}
           >
-            {isPublishing ? 
-              <div className="animate-spin mr-1.5 h-4 w-4 border-2 border-indigo-400 border-t-transparent rounded-full" /> : 
-              <Globe size={16} className="mr-1.5" />
-            }
-            <span className="text-sm">
-              {isPublishing ? '发布中...' : publishedUrl ? '打开网页' : '发布到网络'}
-            </span>
+            {isPublishing ? (
+              <>
+                <div className="w-4 h-4 mr-1.5 rounded-full border-2 border-purple-600 dark:border-purple-400 border-t-transparent animate-spin"></div>
+                <span className="text-sm">发布中...</span>
+              </>
+            ) : (
+              <>
+                <ExternalLink size={16} className="mr-1.5" />
+                <span className="text-sm">{publishedUrl ? '查看已发布' : '发布到网络'}</span>
+              </>
+            )}
           </motion.button>
         </div>
       </div>

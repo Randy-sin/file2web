@@ -4,9 +4,7 @@
  * TextEditor组件
  * 
  * 该组件允许用户输入文本内容，并将其转换为精美的可视化网页。
- * 支持两种生成模式：
- * 1. 标准模式：生成单一HTML文件
- * 2. 高精度模式：使用分步生成技术，将内容拆分为多个互联的HTML文件
+ * 支持标准模式：生成单一HTML文件
  * 
  * 分步生成流程：
  * - 步骤1（planning）：分析内容并规划网站结构
@@ -25,6 +23,8 @@ import HtmlPreview from './HtmlPreview';
 import { motion, AnimatePresence } from 'framer-motion';
 import ChatInterface, { GenerationStatus } from './ChatInterface';
 import SplitView from './SplitView';
+import { ContentType, DesignStylePreset } from '@/lib/prompts';
+import ContentOptions from './ContentOptions';
 
 // 自定义fetch函数，支持自动重试
 async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 2) {
@@ -55,7 +55,7 @@ async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 2)
 }
 
 // 为每个请求创建一个更长的超时信号
-function createTimeoutSignal(timeoutMs = 600000) { // 10分钟超时
+function createTimeoutSignal(timeoutMs = 1800000) { // 30分钟超时
   return AbortSignal.timeout(timeoutMs);
 }
 
@@ -68,7 +68,6 @@ export default function TextEditor() {
   const [debugInfo, setDebugInfo] = useState<string | null>(null);
   const [elapsedTime, setElapsedTime] = useState<number>(0);
   const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
-  const [isHighPerformance, setIsHighPerformance] = useState<boolean>(false);
   const [generatedFiles, setGeneratedFiles] = useState<Array<{name: string, content: string}> | null>(null);
   const [isMultiFile, setIsMultiFile] = useState<boolean>(false);
 
@@ -77,7 +76,6 @@ export default function TextEditor() {
   const [generationProgress, setGenerationProgress] = useState<number>(0);
   const [generationTotal, setGenerationTotal] = useState<number>(0);
   const [generationMessage, setGenerationMessage] = useState<string>('');
-  const [isStepGeneration, setIsStepGeneration] = useState<boolean>(false);
   const [retryAvailable, setRetryAvailable] = useState<boolean>(false);
   
   // 添加API响应内容的状态
@@ -97,6 +95,15 @@ export default function TextEditor() {
   // 引用
   const editorRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // 添加新的状态变量
+  const [contentType, setContentType] = useState<ContentType | undefined>(undefined);
+  const [designStyle, setDesignStyle] = useState<DesignStylePreset | undefined>(undefined);
+  const [isDetectingContent, setIsDetectingContent] = useState(false);
+
+  // 添加startTimeRef用于在渲染之间保持开始时间
+  const startTimeRef = useRef<number | null>(null);
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setText(e.target.value);
@@ -114,36 +121,15 @@ export default function TextEditor() {
     reader.readAsText(file);
   };
 
-  // 开始计时器
-  const startTimer = () => {
-    // 确保先停止之前的计时器
-    stopTimer();
-    
-    const startTime = Date.now();
+  // 重置计时器
+  const resetTimer = () => {
+    startTimeRef.current = null;
     setElapsedTime(0);
-    
-    // 每秒更新已用时间
-    const interval = setInterval(() => {
-      const currentTime = Date.now();
-      const elapsed = Math.floor((currentTime - startTime) / 1000);
-      setElapsedTime(elapsed);
-    }, 1000);
-    
-    setTimerInterval(interval);
-  };
-
-  // 停止计时器
-  const stopTimer = () => {
-    if (timerInterval) {
-      clearInterval(timerInterval);
-      setTimerInterval(null);
-    }
   };
 
   // 重置所有状态
   const resetState = () => {
-    stopTimer();
-    setElapsedTime(0);
+    resetTimer();
     setError(null);
     setDebugInfo(null);
     setGeneratedHtml(null);
@@ -156,434 +142,108 @@ export default function TextEditor() {
     setGenerationProgress(0);
     setGenerationTotal(0);
     setGenerationMessage('');
-    setIsStepGeneration(false);
     setGenerationStatus('idle');
     setApiResponses([]); // 重置API响应
   };
 
-  // 执行分步生成过程
-  const executeStepGeneration = async () => {
-    if (!text.trim()) {
-      setError('请输入文字内容');
-      return;
-    }
+  // 自动检测文本内容类型
+  const detectContentType = async () => {
+    if (!text || text.trim().length < 50) return;
     
-    // 重置所有状态
-    resetState();
-    setIsLoading(true);
-    setIsStepGeneration(true);
-    
-    // 切换到聊天界面
-    setShowChatInterface(true);
-    
-    // 开始计时
-    startTimer();
-    
-    // 步骤1：内容分析和规划
-    setGenerationStep('planning');
-    setGenerationStatus('planning');
-    setGenerationMessage('正在分析内容并规划网站结构...');
+    setIsDetectingContent(true);
     try {
-      console.log('执行分步生成 - 步骤: planning, 文本长度:', text.length);
-      const planningResponse = await fetchWithRetry('/api/generate-step', {
+      const response = await fetch('/api/detect-content', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
-          text,
-          step: 'planning'
-        }),
-        signal: createTimeoutSignal()
+        body: JSON.stringify({ text })
       });
       
-      if (!planningResponse.ok) {
-        let errorMessage = '内容分析和规划失败';
-        let errorDetails = null;
-        
-        try {
-          const errorData = await planningResponse.json();
-          errorMessage = errorData.error || errorMessage;
-          errorDetails = errorData.details;
-          
-          // 记录详细的错误信息
-          console.error('规划步骤API错误:', errorMessage, errorDetails);
-        } catch (e) {
-          console.error('解析错误响应失败:', e);
-          // 尝试从状态文本获取更多信息
-          errorMessage = `内容分析和规划失败 (HTTP ${planningResponse.status}): ${planningResponse.statusText}`;
-        }
-        
-        // 如果包含网络相关错误，提供更具体的提示
-        if (errorMessage.includes('网络连接') || errorMessage.includes('无法连接')) {
-          errorMessage += '。请检查您的网络连接并尝试重新生成。';
-        }
-        
-        throw new Error(errorMessage);
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('检测内容类型失败:', errorData.error);
+        return;
       }
       
-      const planningData = await planningResponse.json();
-      console.log('规划完成:', planningData);
+      const data = await response.json();
+      console.log('检测到的内容类型:', data.contentType);
+      console.log('推荐的设计风格:', data.designStyle);
       
-      // 高精度模式特定处理：确保规划内容完整且可见
-      if (isHighPerformance) {
-        console.log('高精度模式规划数据:', JSON.stringify(planningData, null, 2));
-        
-        // 打印规划内容的关键信息，便于调试
-        if (planningData.plan) {
-          console.log(`网站规划概览 - 标题: ${planningData.plan.title}`);
-          console.log(`总文件数: ${planningData.plan.files?.length || 0}`);
-          console.log(`文件列表: ${planningData.plan.files?.map((f: any) => f.filename).join(', ')}`);
-        }
-        
-        // 确保规划数据包含必要字段，增强数据结构稳定性
-        if (!planningData.preview && planningData.plan) {
-          planningData.preview = JSON.stringify(planningData.plan, null, 2);
-        }
-        
-        if (!planningData.timestamp) {
-          planningData.timestamp = new Date().toISOString();
-        }
+      if (data.contentType) {
+        setContentType(data.contentType);
       }
       
-      // 保存步骤1的API响应 - 优化保存的内容，提供更完整的数据
-      setApiResponses(prev => [...prev, {
-        step: 'planning',
-        data: planningData.plan,
-        preview: planningData.preview || JSON.stringify(planningData.plan, null, 2),
-        timestamp: planningData.timestamp || new Date().toISOString()
-      }]);
-      
-      // 确保在控制台输出完整的apiResponses，以便调试
-      setTimeout(() => {
-        console.log('API响应数组:', apiResponses);
-      }, 100);
-      
-      // 更新规划和进度
-      setGenerationTotal(planningData.plan.files.length);
-      setGenerationProgress(0);
-      
-      // 保持在规划阶段一段时间，让用户能够查看规划内容
-      // 添加一个特殊状态标识，表示规划已完成但还未开始生成主页
-      setGenerationStatus('planning');
-      setGenerationMessage('内容分析和规划已完成，即将开始生成网页...');
-      
-      // 延迟5秒，给用户时间查看规划内容
-      console.log('规划已完成，等待5秒再开始生成主页...');
-      await new Promise(resolve => setTimeout(resolve, 5000));
-      
-      // 步骤2：生成主页
-      setGenerationStep('index');
-      setGenerationStatus('generating');
-      setGenerationMessage('正在生成网站主页...');
-      
-      const indexResponse = await fetchWithRetry('/api/generate-step', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          text,
-          step: 'index',
-          plan: planningData.plan
-        }),
-        signal: createTimeoutSignal()
-      });
-      
-      if (!indexResponse.ok) {
-        let errorMessage = '生成主页失败';
-        let errorDetails = null;
-        
-        try {
-          const errorData = await indexResponse.json();
-          errorMessage = errorData.error || errorMessage;
-          errorDetails = errorData.details;
-          
-          // 记录详细的错误信息
-          console.error('主页生成API错误:', errorMessage, errorDetails);
-        } catch (e) {
-          console.error('解析错误响应失败:', e);
-          // 尝试从状态文本获取更多信息
-          errorMessage = `生成主页失败 (HTTP ${indexResponse.status}): ${indexResponse.statusText}`;
-        }
-        
-        // 对高精度模式下的504超时错误提供特定提示
-        if (indexResponse.status === 504 || (errorMessage.includes('504') && isHighPerformance)) {
-          errorMessage = '因为高精度模式目前api请求只有60s，管理员暂时无法支撑长文本在高精度模式下的费用，请重新尝试或改为普通模式';
-        }
-        // 如果包含网络相关错误，提供更具体的提示
-        else if (errorMessage.includes('网络连接') || errorMessage.includes('无法连接')) {
-          errorMessage += '。请检查您的网络连接并尝试重新生成。';
-        }
-        
-        throw new Error(errorMessage);
-      }
-      
-      const indexData = await indexResponse.json();
-      console.log('主页生成完成:', indexData);
-      
-      // 保存步骤2的API响应 - 优化保存的内容
-      const indexHtmlFile = indexData.files.find((f: {name: string}) => f.name === 'index.html');
-      setApiResponses(prev => [...prev, {
-        step: 'index',
-        data: indexData,
-        preview: indexHtmlFile ? indexHtmlFile.content : undefined,
-        timestamp: new Date().toISOString(),
-        htmlPreview: indexHtmlFile ? indexHtmlFile.content : undefined,
-        files: indexData.files.map((f: {name: string, content: string}) => f.name)
-      }]);
-      
-      // 更新文件列表和进度
-      const currentFiles = indexData.files;
-      setGeneratedFiles(currentFiles);
-      setGenerationProgress(1);
-      
-      // 如果有更多文件需要生成
-      if (indexData.nextStep === 'content') {
-        // 步骤3：逐个生成内容页面
-        let fileIndex = indexData.fileIndex;
-        let nextStep = indexData.nextStep;
-        let updatedFiles = currentFiles;
-        
-        while (nextStep === 'content') {
-          setGenerationStep('content');
-          
-          // 获取当前正在生成的文件信息用于消息展示
-          const currentFileInfo = planningData.plan.files[fileIndex];
-          setGenerationMessage(`正在生成页面 ${fileIndex}/${planningData.plan.files.length - 1}：${currentFileInfo.filename}`);
-          
-          const contentResponse = await fetchWithRetry('/api/generate-step', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ 
-              text,
-              step: 'content',
-              plan: planningData.plan,
-              fileIndex,
-              generatedFiles: updatedFiles
-            }),
-            signal: createTimeoutSignal()
-          });
-          
-          if (!contentResponse.ok) {
-            let errorMessage = `生成页面 ${fileIndex} 失败`;
-            let errorDetails = null;
-            
-            try {
-              const errorData = await contentResponse.json();
-              errorMessage = errorData.error || errorMessage;
-              errorDetails = errorData.details;
-              
-              // 记录详细的错误信息
-              console.error(`页面 ${fileIndex} 生成API错误:`, errorMessage, errorDetails);
-            } catch (e) {
-              console.error('解析错误响应失败:', e);
-              // 尝试从状态文本获取更多信息
-              errorMessage = `生成页面 ${fileIndex} 失败 (HTTP ${contentResponse.status}): ${contentResponse.statusText}`;
-            }
-            
-            // 对高精度模式下的504超时错误提供特定提示
-            if (contentResponse.status === 504 || (errorMessage.includes('504') && isHighPerformance)) {
-              errorMessage = '因为高精度模式目前api请求只有60s，管理员暂时无法支撑长文本在高精度模式下的费用，请重新尝试或改为普通模式';
-            }
-            // 如果包含网络相关错误，提供更具体的提示
-            else if (errorMessage.includes('网络连接') || errorMessage.includes('无法连接')) {
-              errorMessage += '。请检查您的网络连接并尝试重新生成。';
-            }
-            
-            throw new Error(errorMessage);
-          }
-          
-          const contentData = await contentResponse.json();
-          console.log(`页面 ${fileIndex} 生成完成:`, contentData);
-          
-          // 保存每个内容页面的API响应 - 优化保存的内容
-          const currentFile = planningData.plan.files[fileIndex];
-          const contentHtmlFile = contentData.files.find(
-            (f: {name: string}) => f.name === currentFile.filename
-          );
-          
-          // 计算生成进度百分比，用于前端展示
-          const progressPercent = Math.round(((fileIndex + 1) / (planningData.plan.files.length - 1)) * 100);
-          
-          setApiResponses(prev => [...prev, {
-            step: 'content',
-            data: {
-              fileIndex,
-              filename: currentFile.filename,
-              title: currentFile.title,
-              description: currentFile.description,
-              contentData,
-              progress: {
-                current: fileIndex + 1,
-                total: planningData.plan.files.length - 1,
-                percent: progressPercent
-              }
-            },
-            preview: contentHtmlFile ? contentHtmlFile.content : undefined,
-            timestamp: new Date().toISOString(),
-            htmlPreview: contentHtmlFile ? contentHtmlFile.content : undefined
-          }]);
-          
-          // 更新文件列表和进度
-          updatedFiles = contentData.files;
-          setGeneratedFiles(updatedFiles);
-          setGenerationProgress(fileIndex + 1);
-          
-          // 准备下一个文件
-          fileIndex = contentData.fileIndex;
-          nextStep = contentData.nextStep;
-        }
-        
-        // 所有页面生成完成
-        setGenerationStep('complete');
-        setGenerationStatus('complete');
-        setGenerationMessage('所有页面生成完成！');
-        
-        // 使用最新的updatedFiles变量来设置最终结果
-        if (updatedFiles && updatedFiles.length > 0) {
-          setGeneratedHtml(updatedFiles[0].content);
-          setIsMultiFile(updatedFiles.length > 1);
-          
-          // 添加一个最终结果的API响应对象，用于在ChatInterface中展示
-          setApiResponses(prev => [...prev, {
-            step: 'summary',
-            data: {
-              totalFiles: updatedFiles.length,
-              fileNames: updatedFiles.map((f: {name: string}) => f.name),
-              mainFile: updatedFiles[0].name,
-              timeElapsed: elapsedTime
-            },
-            timestamp: new Date().toISOString()
-          }]);
-          
-          // 滚动到预览区域
-          setTimeout(() => {
-            if (previewRef.current) {
-              console.log('分步生成完成，滚动到预览区域');
-              previewRef.current.scrollIntoView({ 
-                behavior: 'smooth',
-                block: 'start' 
-              });
-            }
-          }, 1000);
-        }
-      } else {
-        // 只有主页，没有其他内容页面
-        setGenerationStep('complete');
-        setGenerationStatus('complete');
-        setGenerationMessage('所有页面生成完成！');
-        
-        // 使用currentFiles设置结果
-        if (currentFiles && currentFiles.length > 0) {
-          setGeneratedHtml(currentFiles[0].content);
-          setIsMultiFile(currentFiles.length > 1);
-          
-          // 添加一个最终结果的API响应对象，用于在ChatInterface中展示
-          setApiResponses(prev => [...prev, {
-            step: 'summary',
-            data: {
-              totalFiles: currentFiles.length,
-              fileNames: currentFiles.map((f: {name: string}) => f.name),
-              mainFile: currentFiles[0].name,
-              timeElapsed: elapsedTime,
-              isSinglePage: true
-            },
-            timestamp: new Date().toISOString()
-          }]);
-          
-          // 滚动到预览区域
-          setTimeout(() => {
-            if (previewRef.current) {
-              console.log('分步生成完成，滚动到预览区域');
-              previewRef.current.scrollIntoView({ 
-                behavior: 'smooth',
-                block: 'start' 
-              });
-            }
-          }, 1000);
-        }
+      if (data.designStyle) {
+        setDesignStyle(data.designStyle);
       }
     } catch (error) {
-      console.error('分步生成过程中出错:', error);
-      
-      // 构建更友好的错误消息
-      let errorMessage = '生成网页时出错';
-      if (error instanceof Error) {
-        // 保存原始错误信息以便于调试
-        console.error('原始错误信息:', error.message, error.cause || '无详细原因');
-        
-        // 针对不同错误类型提供更友好的提示
-        if (error.message.includes('504') && isHighPerformance) {
-          // 高精度模式下的504错误特定提示
-          errorMessage = '因为高精度模式目前api请求只有60s，管理员暂时无法支撑长文本在高精度模式下的费用，请重新尝试或改为普通模式';
-        }
-        else if (error.message.includes('signal timed out')) {
-          // 文本过长导致的超时情况
-          const textLength = text.length;
-          if (textLength > 10000) {
-            errorMessage = `文本内容过长(${textLength}字符)导致生成超时，请减少文本量至少50%(建议5000字以内)后重试。或者切换到高精度模式，它能更好地处理长文本。`;
-          } else if (textLength > 5000) {
-            errorMessage = `文本内容较长(${textLength}字符)可能导致处理超时，请尝试减少文本量或切换到高精度模式后重试。`;
-          } else {
-            errorMessage = '生成请求超时，可能是因为服务负载较高，请稍后再试。建议尝试高精度模式，它采用分步生成，成功率更高。';
-          }
-        } else if (error.message.includes('fetch failed') || error.message.includes('socket') || error.message.includes('网络连接') || error.message.includes('无法连接')) {
-          // 丰富网络错误信息
-          errorMessage = '连接到AI服务失败，请检查您的网络连接并重试。';
-          
-          // 如果是在生成规划步骤时出现的网络错误，说明可能是服务器问题
-          if (generationStep === 'planning') {
-            errorMessage += '如果您的网络正常，可能是AI服务暂时不可用，请稍后再试。';
-          } else if (generationStep === 'index') {
-            errorMessage += '主页生成过程中断开连接，请稍后重试。';
-          } else if (generationStep === 'content') {
-            errorMessage += `内容页面生成过程(第${generationProgress+1}/${generationTotal}页)中断开连接，请稍后重试。`;
-          }
-        } else if (error.message.includes('timeout') || error.message.includes('超时')) {
-          // 超时但不是因为signal timed out
-          errorMessage = '生成请求处理超时，请尝试减少文本量或切换到高精度模式后重试。';
-        } else if (error.message.includes('API密钥无效') || error.message.includes('未授权')) {
-          errorMessage = 'AI服务授权失败，请联系管理员检查API配置。';
-        } else if (error.message.includes('调用AI服务失败')) {
-          errorMessage = '调用AI服务失败，请稍后再试。如果问题持续存在，可能需要检查服务状态。';
-        } else if (error.message.includes('The operation was aborted') || error.message.includes('aborted')) {
-          errorMessage = '操作被中止，可能是因为浏览器取消了请求或服务暂时不可用。请稍后再试。';
-        } else if (error.message.includes('API服务器错误') || error.message.includes('服务器错误')) {
-          errorMessage = 'AI服务器出现内部错误，请稍后再试。服务团队正在处理这个问题。';
-        } else {
-          // 使用原始错误信息
-          errorMessage = error.message;
-        }
-        
-        // 添加重试建议
-        if (!errorMessage.includes('请稍后再试') && !errorMessage.includes('重试')) {
-          errorMessage += '。您可以尝试重新生成，如果问题持续存在，请联系管理员。';
-        }
-      }
-      
-      setError(errorMessage);
-      setGenerationStatus('error');
-      
-      // 在发生网络相关错误或超时时提供重试按钮
-      if (errorMessage.includes('网络') || 
-          errorMessage.includes('连接') ||
-          errorMessage.includes('服务') || 
-          errorMessage.includes('请稍后再试') ||
-          errorMessage.includes('超时') ||
-          errorMessage.includes('减少文本量')) {
-        setRetryAvailable(true);
-      }
+      console.error('检测内容类型时出错:', error);
     } finally {
-      // 确保在处理完成后设置加载状态为false
-      // 使用setTimeout延迟执行，避免界面卡顿
-      setTimeout(() => {
-        setIsLoading(false);
-        stopTimer();
-      }, 100);
+      setIsDetectingContent(false);
     }
+  };
+
+  // 处理规划步骤
+  const handlePlanningStep = async (stepResponse: any) => {
+    // 通用处理，不再区分高精度模式
+    setGenerationMessage('网站规划已完成，正在生成主页...');
+    const planningData = stepResponse.plan;
+    
+    console.log('规划数据:', JSON.stringify(planningData, null, 2));
+    
+    // 直接使用setApiResponses而不是未定义的addApiResponse
+    setApiResponses(prev => [...prev, {
+      step: 'planning',
+      data: planningData,
+      timestamp: new Date().toISOString()
+    }]);
+    
+    return planningData;
+  };
+
+  // 处理主页生成错误
+  const handleIndexError = (indexResponse: Response, errorMessage: string) => {
+    // 不再区分高精度模式，统一错误处理
+    if (indexResponse.status === 504 || errorMessage.includes('504')) {
+      errorMessage = '生成请求超时，请稍后再试或减少文本量';
+    }
+    throw new Error(errorMessage);
+  };
+  
+  // 处理内容页生成错误
+  const handleContentError = (contentResponse: Response, errorMessage: string) => {
+    // 不再区分高精度模式，统一错误处理
+    if (contentResponse.status === 504 || errorMessage.includes('504')) {
+      errorMessage = '生成请求超时，请稍后再试或减少文本量';
+    }
+    throw new Error(errorMessage);
+  };
+
+  // 处理分步生成错误
+  const handleStepGenerationError = (error: Error, textLength: number) => {
+    let errorMessage = '生成网页时出错，请重试';
+    
+    if (error.message.includes('504')) {
+      errorMessage = '生成请求超时，请稍后再试或减少文本量';
+    }
+    else if (error.message.includes('signal timed out')) {
+      if (textLength > 10000) {
+        errorMessage = `文本内容过长(${textLength}字符)导致生成超时，请减少文本量至少50%(建议5000字以内)后重试。`;
+      } else if (textLength > 5000) {
+        errorMessage = `文本内容较长(${textLength}字符)可能导致处理超时，请尝试减少文本量后重试。`;
+      } else {
+        errorMessage = '生成请求超时，可能是因为服务负载较高，请稍后再试。';
+      }
+    } else if (error.message.includes('fetch failed')) {
+      errorMessage = '连接到AI服务失败，请检查您的网络连接并重试。如果问题持续存在，可能是服务临时不可用。';
+    } else if (error.message.includes('timeout') || error.message.includes('超时')) {
+      errorMessage = '生成请求处理超时，请尝试减少文本量后重试。';
+    } else {
+      errorMessage = error.message;
+    }
+    
+    return errorMessage;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -594,21 +254,13 @@ export default function TextEditor() {
       return;
     }
 
-    // 高精度模式下使用分步生成
-    if (isHighPerformance) {
-      return executeStepGeneration();
-    }
-    
-    // 标准模式下使用原有的生成方式
+    // 使用标准模式处理
     // 重置所有状态
     resetState();
     setIsLoading(true);
     
     // 切换到聊天界面
     setShowChatInterface(true);
-    
-    // 开始计时
-    startTimer();
     
     try {
       // 更新生成状态
@@ -622,7 +274,8 @@ export default function TextEditor() {
         },
         body: JSON.stringify({
           text,
-          isHighPerformance
+          contentType,
+          designStyle
         }),
         signal: createTimeoutSignal() // 使用更长的超时时间
       });
@@ -682,26 +335,25 @@ export default function TextEditor() {
       if (error instanceof Error) {
         console.error('原始错误信息:', error.message);
         
-        // 针对不同错误类型提供更友好的提示
-        if (error.message.includes('504') && isHighPerformance) {
-          // 高精度模式下的504错误特定提示
-          errorMessage = '因为高精度模式目前api请求只有60s，管理员暂时无法支撑长文本在高精度模式下的费用，请重新尝试或改为普通模式';
+        // 统一错误处理
+        if (error.message.includes('504')) {
+          errorMessage = '生成请求超时，请稍后再试或减少文本量';
         }
         else if (error.message.includes('signal timed out')) {
           // 文本过长导致的超时情况
           const textLength = text.length;
           if (textLength > 10000) {
-            errorMessage = `文本内容过长(${textLength}字符)导致生成超时，请减少文本量至少50%(建议5000字以内)后重试。或者切换到高精度模式，它能更好地处理长文本。`;
+            errorMessage = `文本内容过长(${textLength}字符)导致生成超时，请减少文本量至少50%(建议5000字以内)后重试。`;
           } else if (textLength > 5000) {
-            errorMessage = `文本内容较长(${textLength}字符)可能导致处理超时，请尝试减少文本量或切换到高精度模式后重试。`;
+            errorMessage = `文本内容较长(${textLength}字符)可能导致处理超时，请尝试减少文本量后重试。`;
           } else {
-            errorMessage = '生成请求超时，可能是因为服务负载较高，请稍后再试。建议尝试高精度模式，它采用分步生成，成功率更高。';
+            errorMessage = '生成请求超时，可能是因为服务负载较高，请稍后再试。';
           }
         } else if (error.message.includes('fetch failed')) {
           errorMessage = '连接到AI服务失败，请检查您的网络连接并重试。如果问题持续存在，可能是服务临时不可用。';
         } else if (error.message.includes('timeout') || error.message.includes('超时')) {
           // 超时但不是因为signal timed out
-          errorMessage = '生成请求处理超时，请尝试减少文本量或切换到高精度模式后重试。';
+          errorMessage = '生成请求处理超时，请尝试减少文本量后重试。';
         } else if (error.message.includes('aborted')) {
           errorMessage = '操作被中止，可能是因为浏览器取消了请求或服务暂时不可用。请稍后再试。';
         } else {
@@ -725,28 +377,10 @@ export default function TextEditor() {
       // 使用setTimeout延迟执行，避免界面卡顿
       setTimeout(() => {
         setIsLoading(false);
-        stopTimer();
       }, 100);
     }
   };
 
-  // 切换高精度模式
-  const toggleHighPerformance = () => {
-    // 切换高精度模式状态
-    setIsHighPerformance(!isHighPerformance);
-    
-    // 重置状态，确保清理之前的数据
-    resetState();
-    
-    // 在切换模式时记录日志
-    console.log(`已切换到${!isHighPerformance ? '高精度' : '标准'}模式`);
-    
-    // 如果之前有错误提示，在切换模式后清除
-    if (error) {
-      setError(null);
-    }
-  };
-  
   // 重新生成
   const handleRegenerate = () => {
     // 使用淡出效果先隐藏聊天界面
@@ -787,6 +421,38 @@ export default function TextEditor() {
     }
   }, [generationStatus, generatedHtml]);
 
+  // 添加计时器effect - 在现有useEffect前添加
+  useEffect(() => {
+    // 只有当生成状态为generating时才创建计时器
+    if (generationStatus !== 'generating') {
+      // 如果不是generating状态，确保重置计时器
+      if (startTimeRef.current !== null) {
+        resetTimer();
+      }
+      return;
+    }
+    
+    // 开始计时 - 只在首次进入generating状态时设置开始时间
+    if (startTimeRef.current === null) {
+      startTimeRef.current = Date.now();
+    }
+    
+    console.log('创建计时器');
+    // 创建计时器
+    const interval = setInterval(() => {
+      if (startTimeRef.current === null) return;
+      const currentTime = Date.now();
+      const elapsed = Math.floor((currentTime - startTimeRef.current) / 1000);
+      setElapsedTime(elapsed);
+    }, 1000);
+    
+    // 返回清理函数
+    return () => {
+      console.log('清理计时器');
+      clearInterval(interval);
+    };
+  }, [generationStatus]); // 依赖于generationStatus而不是startTimeRef.current
+
   return (
     <div className="space-y-8">
       <AnimatePresence mode="wait">
@@ -807,12 +473,6 @@ export default function TextEditor() {
                   <div className="pt-6 pb-4 px-8 border-b border-gray-100 dark:border-gray-700">
                     <div className="flex justify-between items-center">
                       <h2 className="text-lg font-semibold text-gray-800 dark:text-white">输入内容</h2>
-                      {isHighPerformance && (
-                        <div className="flex items-center px-3 py-1 rounded-full text-sm bg-gradient-to-r from-yellow-500 to-orange-500 text-white">
-                          <Zap size={16} className="mr-1 animate-pulse" />
-                          高精度模式
-                        </div>
-                      )}
                     </div>
                   </div>
                   {/* 内容区域 */}
@@ -857,23 +517,6 @@ export default function TextEditor() {
           >
             <div className="p-4 bg-gray-100 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 flex justify-between items-center">
               <h2 className="text-lg font-medium text-gray-800 dark:text-white">文本编辑器</h2>
-              
-              {/* 高精度模式切换按钮 */}
-              <div className="flex items-center space-x-3">
-                <button
-                  type="button"
-                  onClick={toggleHighPerformance}
-                  className={`flex items-center px-3 py-1 rounded-full text-sm transition-colors ${
-                    isHighPerformance 
-                      ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white' 
-                      : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300'
-                  }`}
-                >
-                  <Zap size={16} className={`mr-1 ${isHighPerformance ? 'animate-pulse' : ''}`} />
-                  高精度模式
-                  <span className={`ml-2 w-3 h-3 rounded-full ${isHighPerformance ? 'bg-white' : 'bg-gray-400 dark:bg-gray-500'}`}></span>
-                </button>
-              </div>
             </div>
             
             {error && (
@@ -889,14 +532,9 @@ export default function TextEditor() {
                         onClick={() => {
                           setError(null);
                           setRetryAvailable(false);
-                          // 调用相应的生成函数
-                          if (isHighPerformance) {
-                            executeStepGeneration();
-                          } else {
-                            // 创建一个合适的事件对象
-                            const fakeEvent = { preventDefault: () => {} } as React.FormEvent<HTMLFormElement>;
-                            handleSubmit(fakeEvent);
-                          }
+                          // 调用生成函数
+                          const fakeEvent = { preventDefault: () => {} } as React.FormEvent<HTMLFormElement>;
+                          handleSubmit(fakeEvent);
                         }}
                         className="mt-2 px-4 py-2 bg-red-100 dark:bg-red-800 text-red-800 dark:text-red-200 rounded-md hover:bg-red-200 dark:hover:bg-red-700 transition-colors"
                       >
@@ -917,13 +555,30 @@ export default function TextEditor() {
             
             <form onSubmit={handleSubmit}>
               <div className="p-4">
-                <textarea
-                  className="w-full h-64 p-4 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                  placeholder="在这里输入您的文字内容，AI将分析内容并转化为美观的中文可视化网页..."
-                  value={text}
-                  onChange={handleTextChange}
-                  disabled={isLoading}
-                ></textarea>
+                <div className="relative mt-2">
+                  <textarea
+                    id="text-input"
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white min-h-[250px]"
+                    placeholder="输入您想要可视化的文本内容..."
+                    value={text}
+                    onChange={handleTextChange}
+                    disabled={isLoading}
+                    ref={textareaRef}
+                  ></textarea>
+                  
+                  {/* 添加内容类型和设计风格选择器 */}
+                  {!isLoading && (
+                    <ContentOptions 
+                      contentType={contentType}
+                      designStyle={designStyle}
+                      onContentTypeChange={setContentType}
+                      onDesignStyleChange={setDesignStyle}
+                      onAutoDetect={detectContentType}
+                      text={text}
+                      isLoading={isLoading || isDetectingContent}
+                    />
+                  )}
+                </div>
               </div>
               
               <div className="p-4 bg-gray-50 dark:bg-gray-700">
@@ -935,14 +590,6 @@ export default function TextEditor() {
                     <li>深色/浅色模式切换功能</li>
                     <li>精美的交互效果和动画</li>
                     <li>优化的性能和加载速度</li>
-                    {isHighPerformance && (
-                      <li className="text-orange-500 dark:text-orange-400 font-medium">
-                        高精度模式：内容将被智能拆分为多个HTML文件，提供更丰富的展示效果
-                        <div className="text-sm text-gray-600 dark:text-gray-400 mt-1 ml-4">
-                          此模式使用分步生成技术，能够处理较长文本，避免请求超时问题
-                        </div>
-                      </li>
-                    )}
                     <li className="text-green-500 dark:text-green-400 font-medium">
                       生成完成后将自动发布网页并提供访问链接
                       <div className="text-sm text-gray-600 dark:text-gray-400 mt-1 ml-4">
@@ -969,9 +616,7 @@ export default function TextEditor() {
                     <button
                       type="submit"
                       className={`w-full sm:w-auto flex items-center justify-center px-6 py-2 text-white rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                        isHighPerformance 
-                          ? 'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600' 
-                          : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
+                        'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
                       }`}
                       disabled={isLoading}
                     >
@@ -981,21 +626,12 @@ export default function TextEditor() {
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                           </svg>
-                          {isStepGeneration ? '分步生成中...' : '生成中...'}
+                          生成中...
                         </>
                       ) : (
                         <>
-                          {isHighPerformance ? (
-                            <>
-                              <Zap size={18} className="mr-2" />
-                              分步高精度生成
-                            </>
-                          ) : (
-                            <>
-                              <Wand2 size={18} className="mr-2" />
-                              生成网页
-                            </>
-                          )}
+                          <Wand2 size={18} className="mr-2" />
+                          生成网页
                         </>
                       )}
                     </button>

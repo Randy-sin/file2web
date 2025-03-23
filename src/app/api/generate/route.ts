@@ -1,7 +1,10 @@
+// 设置API路由的最大执行时间为300秒（5分钟）
+export const maxDuration = 300;
+
 import { NextResponse } from 'next/server';
 
-// 设置超时时间为 600 秒（10分钟）
-const TIMEOUT_MS = 600000;
+// 设置超时时间为 1800 秒（30分钟）
+const TIMEOUT_MS = 1800000;
 
 // 创建一个带超时的 fetch 函数
 async function fetchWithTimeout(url: string, options: RequestInit, timeout: number) {
@@ -21,137 +24,22 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeout: numb
   }
 }
 
-// 标准模式提示词
-const standardPrompt = (text: string) => `我会给你一个文本，分析内容，并将其转化为美观漂亮的中文可视化网页：
+// 导入模板系统
+import { ContentType, DesignStylePreset, templateManager } from '@/lib/prompts';
+import { presetProvider } from '@/lib/prompts/presets';
 
-## 内容要求
-- 所有页面内容必须为简体中文
-- 保持原文件的核心信息，但以更易读、可视化的方式呈现
-- 在页面底部添加作者信息区域，包含：
-  * 作者姓名: [作者姓名]
-  * 社交媒体链接: 至少包含GitHub、Twitter/X、LinkedIn等主流平台
-  * 版权信息和年份
+// 标准模式提示词 - 保留旧版注释以便参考
+// const standardPrompt = (text: string) => `...`;
 
-## 设计风格
-- 整体风格参考Linear App的简约现代设计
-- 使用清晰的视觉层次结构，突出重要内容
-- 配色方案应专业、和谐，适合长时间阅读
+// 高精度模式提示词 - 保留旧版注释以便参考
+// const highPerformancePrompt = (text: string) => `...`;
 
-## 技术规范
-- 使用HTML5、TailwindCSS 3.0+（通过CDN引入）和必要的JavaScript
-- 代码结构清晰，包含适当注释，便于理解和维护
-
-## 响应式设计
-- 页面必须在所有设备上（手机、平板、桌面）完美展示
-- 针对不同屏幕尺寸优化布局和字体大小
-- 确保移动端有良好的触控体验
-
-## 图标与视觉元素
-- 使用专业图标库如Font Awesome或Material Icons（通过CDN引入）
-- 根据内容主题选择合适的插图或图表展示数据
-- 避免使用emoji作为主要图标
-
-## 交互体验
-- 添加适当的微交互效果提升用户体验：
-  * 按钮悬停时有轻微放大和颜色变化
-  * 卡片元素悬停时有精致的阴影和边框效果
-  * 页面滚动时有平滑过渡效果
-  * 内容区块加载时有优雅的淡入动画
-
-## 性能优化
-- 确保页面加载速度快，避免不必要的大型资源
-- 图片使用现代格式(WebP)并进行适当压缩
-- 实现懒加载技术用于长页面内容
-
-## 输出要求
-- 提供完整可运行的单一HTML文件，包含所有必要的CSS和JavaScript
-- 确保代码符合W3C标准，无错误警告
-- 页面在不同浏览器中保持一致的外观和功能
-
-以下是需要转换的文本内容：
-
-${text}
-
-请根据上述文本的内容，创建最适合展示该内容的可视化网页，保证文本全部内容都能显示在网页上。请直接返回完整的HTML代码，不要包含任何其他解释或说明。`;
-
-// 高精度模式提示词
-const highPerformancePrompt = (text: string) => `我会给你一个文本，请将其转化为一个由多个互联HTML文件组成的精美可视化网站：
-
-## 内容组织要求
-- 分析文本内容，将其智能拆分为多个逻辑相关的部分
-- 创建一个index.html作为主入口，包含导航菜单和内容概览
-- 为每个主要部分创建单独的HTML文件（如chapter1.html, chapter2.html等）
-- 确保所有页面内容为简体中文
-- 保持原文本的核心信息，但以更易读、可视化的方式呈现
-- 在每个页面底部添加作者信息区域，包含：
-  * 作者姓名: [作者姓名]
-  * 社交媒体链接: 至少包含GitHub、Twitter/X、LinkedIn等主流平台
-  * 版权信息和年份
-
-## 导航与链接
-- 在index.html中创建清晰的导航菜单，链接到所有内容页面
-- 在每个内容页面顶部添加导航栏，可以返回主页和访问其他页面
-- 在每个页面底部添加"上一页"和"下一页"链接
-- 为相关内容添加内部链接，增强内容关联性
-
-## 设计风格
-- 整体风格参考Linear App的简约现代设计
-- 使用清晰的视觉层次结构，突出重要内容
-- 配色方案应专业、和谐，适合长时间阅读
-- 所有页面保持一致的设计语言和布局结构
-
-## 内容增强
-- 识别关键概念，为其添加简短解释或定义
-- 将长列表转换为分类展示或卡片式布局
-- 为数据部分创建简单的可视化图表
-- 为复杂概念添加简化说明或图示
-- 根据内容主题添加相关的图标或插图
-
-## 技术规范
-- 使用HTML5、TailwindCSS 3.0+（通过CDN引入）和必要的JavaScript
-- 代码结构清晰，包含适当注释，便于理解和维护
-
-## 响应式设计
-- 所有页面必须在各种设备上（手机、平板、桌面）完美展示
-- 针对不同屏幕尺寸优化布局和字体大小
-- 确保移动端有良好的触控体验
-- 在小屏幕设备上优化导航菜单为折叠式
-
-## 图标与视觉元素
-- 使用专业图标库如Font Awesome或Material Icons（通过CDN引入）
-- 根据内容主题选择合适的插图或图表展示数据
-- 避免使用emoji作为主要图标
-- 为每个主要部分选择代表性的图标
-
-## 交互体验
-- 添加适当的微交互效果提升用户体验：
-  * 按钮悬停时有轻微放大和颜色变化
-  * 卡片元素悬停时有精致的阴影和边框效果
-  * 页面切换时有平滑过渡效果
-  * 内容区块加载时有优雅的淡入动画
-- 实现页面间的平滑切换效果
-
-## 性能优化
-- 确保页面加载速度快，避免不必要的大型资源
-- 图片使用现代格式(WebP)并进行适当压缩
-- 实现懒加载技术用于长页面内容
-- 优化JavaScript代码，避免阻塞渲染
-
-## 输出要求
-- 提供完整的多文件网站，包括index.html和所有内容页面
-- 所有文件应放在同一目录下，使用相对路径链接
-- 确保代码符合W3C标准，无错误警告
-- 所有页面在不同浏览器中保持一致的外观和功能
-
-以下是需要转换的文本内容：
-
-${text}
-
-请根据上述文本的内容，创建一个由多个HTML文件组成的完整网站，确保文本全部内容都能以最佳方式展示。请直接返回所有HTML文件的完整代码，每个文件之间使用明确的分隔符标识。`;
+// 不再创建新实例，使用已注册模板的实例
+// const templateManager = new TemplateManager();
 
 export async function POST(request: Request) {
   try {
-    const { text, isHighPerformance = false } = await request.json();
+    const { text, designStyle, contentType } = await request.json();
 
     if (!text || text.trim() === '') {
       return NextResponse.json(
@@ -160,21 +48,39 @@ export async function POST(request: Request) {
       );
     }
 
-    // 检查文本长度，如果过长且不是高精度模式，给出明确提示
-    if (!isHighPerformance && text.length > 10000) {
+    // 检查文本长度，如果过长，给出明确提示
+    if (text.length > 10000) {
       return NextResponse.json(
         { 
-          error: `文本内容过长(${text.length}字符)，超过标准模式处理能力。请减少文本量或切换到高精度模式。`,
+          error: `文本内容过长(${text.length}字符)，超过处理能力。请减少文本量再试。`,
           textLength: text.length
         },
         { status: 413 } // Payload Too Large
       );
     }
 
-    console.log('收到生成请求，文本长度:', text.length, '高精度模式:', isHighPerformance);
+    console.log('收到生成请求，文本长度:', text.length);
 
-    // 根据模式选择提示词
-    const promptText = isHighPerformance ? highPerformancePrompt(text) : standardPrompt(text);
+    // 自动检测内容类型（如果未提供）
+    const detectedContentType = contentType || presetProvider.detectContentType(text);
+    console.log('内容类型:', detectedContentType);
+    
+    // 使用指定的设计风格或从内容类型获取默认值
+    const stylePreset = designStyle || presetProvider.getContentTypeConfig(detectedContentType).designStyle;
+    console.log('设计风格:', stylePreset);
+
+    // 选择模板
+    let promptText;
+    const template = templateManager.get('standard');
+    if (template) {
+      promptText = template.render(text);
+    }
+
+    // 如果模板不存在，使用自动选择
+    if (!promptText) {
+      const template = templateManager.autoSelect(text);
+      promptText = template.render(text);
+    }
 
     // 调用Monica AI API，使用带超时的 fetch
     try {
@@ -198,7 +104,9 @@ export async function POST(request: Request) {
                   }
                 ]
               }
-            ]
+            ],
+            temperature: 0.5,
+            max_tokens: 8000
           })
         },
         TIMEOUT_MS
@@ -207,7 +115,24 @@ export async function POST(request: Request) {
       console.log('Monica API响应状态:', response.status);
 
       if (!response.ok) {
-        const errorData = await response.json();
+        let errorData;
+        // 先克隆响应，避免多次读取导致错误
+        const responseClone = response.clone();
+        
+        try {
+          errorData = await response.json();
+        } catch (e) {
+          // 如果响应不是JSON格式，尝试使用克隆的响应获取文本内容
+          try {
+            const textContent = await responseClone.text();
+            console.error('Monica AI API返回非JSON响应:', textContent);
+            errorData = { error: `API响应格式错误: ${response.status} ${response.statusText}` };
+          } catch (textError) {
+            console.error('无法读取响应内容:', textError);
+            errorData = { error: `API响应读取失败: ${response.status} ${response.statusText}` };
+          }
+        }
+        
         console.error('Monica AI API错误:', errorData);
         
         // 根据不同状态码返回不同的错误信息
@@ -220,6 +145,9 @@ export async function POST(request: Request) {
         } else if (response.status === 429) {
           errorMessage = 'API请求频率超限，请稍后再试';
           statusCode = 429;
+        } else if (response.status === 504) {
+          errorMessage = 'AI服务处理超时，请尝试减少文本量或稍后再试';
+          statusCode = 504;
         } else if (response.status >= 500) {
           errorMessage = 'AI服务器暂时响应异常，请稍后再试';
           statusCode = 502;
@@ -241,25 +169,8 @@ export async function POST(request: Request) {
           const htmlContent = data.choices[0].message.content;
           console.log('提取的HTML内容长度:', htmlContent.length);
           
-          // 如果是高精度模式，尝试解析多个HTML文件
-          if (isHighPerformance) {
-            // 尝试解析多个HTML文件
-            const files = parseMultipleHtmlFiles(htmlContent);
-            if (files.length > 0) {
-              console.log(`成功解析${files.length}个HTML文件`);
-              return NextResponse.json({ 
-                html: files[0].content, // 返回主文件内容用于兼容
-                files: files, // 返回所有文件
-                isMultiFile: true 
-              });
-            } else {
-              console.log('无法解析多个HTML文件，回退到单文件模式');
-              return NextResponse.json({ html: htmlContent });
-            }
-          } else {
-            // 标准模式直接返回内容
-            return NextResponse.json({ html: htmlContent });
-          }
+          // 标准模式直接返回内容
+          return NextResponse.json({ html: htmlContent });
         } else {
           // 尝试直接从响应中提取HTML内容
           console.log('尝试备用方法提取HTML内容');
@@ -301,7 +212,7 @@ export async function POST(request: Request) {
           { status: 500 }
         );
       }
-    } catch (error: unknown) {
+    } catch (error) {
       // 处理超时错误
       if (error instanceof Error && error.name === 'AbortError') {
         console.error('Monica AI API请求超时');
@@ -321,7 +232,7 @@ export async function POST(request: Request) {
           { 
             error: errorMessage,
             textLength: text.length,
-            suggestion: isHighPerformance ? '文本过长，请减少文本量再试' : '建议切换到高精度模式或减少文本量'
+            suggestion: '建议减少文本量再试'
           },
           { status: 504 }
         );

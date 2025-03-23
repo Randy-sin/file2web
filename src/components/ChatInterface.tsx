@@ -731,103 +731,105 @@ export default function ChatInterface({
   // 当API响应变化时更新消息
   useEffect(() => {
     if (apiResponses.length > 0) {
-      // 创建一个新的消息数组
-      const newMessages: Message[] = [];
-      
-      // 始终包含用户消息
-      const userMsg = messages.find(m => m.id === 'user-input');
-      if (userMsg) {
-        newMessages.push(userMsg);
-      }
-      
-      // 添加API响应消息
-      apiResponses.forEach((response, index) => {
-        // 为每个步骤添加系统消息
-        let systemMessage: Message;
+      // 使用函数式更新，不依赖于当前的messages状态
+      setMessages(prevMessages => {
+        // 创建一个新的消息数组
+        const newMessages: Message[] = [];
         
-        switch (response.step) {
-          case 'planning':
-            systemMessage = {
-              id: `system-${response.step}`,
-              content: isPlanningComplete 
-                ? '✅ 内容分析和规划已完成！' 
-                : '正在分析您的内容并规划网站结构...',
-              type: 'system',
-              timestamp: new Date()
-            };
-            break;
-            
-          case 'index':
-            systemMessage = {
-              id: `system-${response.step}`,
-              content: '网站规划完成，正在生成主页...',
-              type: 'system',
-              timestamp: new Date()
-            };
-            break;
-            
-          case 'content':
-            const { fileIndex, filename } = response.data;
-            systemMessage = {
-              id: `system-${response.step}-${fileIndex}`,
-              content: `正在生成页面：${filename}`,
-              type: 'system',
-              timestamp: new Date()
-            };
-            break;
-            
-          default:
-            systemMessage = {
-              id: `system-${response.step}`,
-              content: '正在处理...',
-              type: 'system',
-              timestamp: new Date()
-            };
+        // 始终包含用户消息
+        const userMsg = prevMessages.find(m => m.id === 'user-input');
+        if (userMsg) {
+          newMessages.push(userMsg);
         }
         
-        // 添加系统消息
-        newMessages.push(systemMessage);
-        
         // 添加API响应消息
-        newMessages.push({
-          id: `api-${response.step}-${index}`,
-          content: '',
-          type: 'api-response',
-          timestamp: new Date(),
-          apiResponse: response,
-          // 如果不是最后一个响应，添加nextStep
-          ...(index < apiResponses.length - 1 ? { nextStep: apiResponses[index + 1].step } : {})
+        apiResponses.forEach((response, index) => {
+          // 为每个步骤添加系统消息
+          let systemMessage: Message;
+          
+          switch (response.step) {
+            case 'planning':
+              systemMessage = {
+                id: `system-${response.step}`,
+                content: isPlanningComplete 
+                  ? '✅ 内容分析和规划已完成！' 
+                  : '正在分析您的内容并规划网站结构...',
+                type: 'system',
+                timestamp: new Date()
+              };
+              break;
+              
+            case 'index':
+              systemMessage = {
+                id: `system-${response.step}`,
+                content: '网站规划完成，正在生成主页...',
+                type: 'system',
+                timestamp: new Date()
+              };
+              break;
+              
+            case 'content':
+              const { fileIndex, filename } = response.data;
+              systemMessage = {
+                id: `system-${response.step}-${fileIndex}`,
+                content: `正在生成页面：${filename}`,
+                type: 'system',
+                timestamp: new Date()
+              };
+              break;
+              
+            default:
+              systemMessage = {
+                id: `system-${response.step}`,
+                content: '正在处理...',
+                type: 'system',
+                timestamp: new Date()
+              };
+          }
+          
+          // 添加系统消息
+          newMessages.push(systemMessage);
+          
+          // 添加API响应消息
+          newMessages.push({
+            id: `api-${response.step}-${index}`,
+            content: '',
+            type: 'api-response',
+            timestamp: new Date(),
+            apiResponse: response,
+            // 如果不是最后一个响应，添加nextStep
+            ...(index < apiResponses.length - 1 ? { nextStep: apiResponses[index + 1].step } : {})
+          });
         });
+        
+        // 如果生成已完成，添加完成消息
+        if (generationStatus === 'complete') {
+          newMessages.push({
+            id: 'system-complete',
+            content: '✅ 您的网页已成功生成！',
+            type: 'system',
+            timestamp: new Date()
+          });
+        } 
+        // 如果出错，添加错误消息
+        else if (generationStatus === 'error' && error) {
+          newMessages.push({
+            id: 'system-error',
+            content: `❌ ${error}`,
+            type: 'system',
+            timestamp: new Date(),
+            // 针对API响应超时或网络错误，提供重试选项
+            ...(error.includes('超时') || error.includes('网络问题') || error.includes('服务暂时不可用') 
+               ? { retryAvailable: true } : {})
+          });
+        }
+        
+        return newMessages;
       });
-      
-      // 如果生成已完成，添加完成消息
-      if (generationStatus === 'complete') {
-        newMessages.push({
-          id: 'system-complete',
-          content: '✅ 您的网页已成功生成！',
-          type: 'system',
-          timestamp: new Date()
-        });
-      } 
-      // 如果出错，添加错误消息
-      else if (generationStatus === 'error' && error) {
-        newMessages.push({
-          id: 'system-error',
-          content: `❌ ${error}`,
-          type: 'system',
-          timestamp: new Date(),
-          // 针对API响应超时或网络错误，提供重试选项
-          ...(error.includes('超时') || error.includes('网络问题') || error.includes('服务暂时不可用') 
-             ? { retryAvailable: true } : {})
-        });
-      }
-      
-      // 更新消息数组
-      setMessages(newMessages);
     }
-  }, [apiResponses, generationStatus, error, messages, isPlanningComplete, generatedHtml, generationMessage, generationProgress, generationTotal]);
+  }, [apiResponses, generationStatus, error, isPlanningComplete]);
 
-        return (
+  return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* 头部导航 */}
       <div className="flex items-center p-4 border-b border-gray-200 dark:border-gray-700">
