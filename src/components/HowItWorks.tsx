@@ -99,7 +99,7 @@ export default function HowItWorks() {
     }
   ];
 
-  const throttle = (callback: Function, delay: number) => {
+  const throttle = (callback: () => void, delay: number) => {
     if (throttleTimeoutRef.current) return;
     
     throttleTimeoutRef.current = setTimeout(() => {
