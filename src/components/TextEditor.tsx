@@ -18,13 +18,15 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-import { FileUp, Wand2, AlertTriangle, Zap, Globe } from 'lucide-react';
+import { FileUp, Wand2, AlertTriangle, Zap, Globe, Bot } from 'lucide-react';
 import HtmlPreview from './HtmlPreview';
 import { motion, AnimatePresence } from 'framer-motion';
 import ChatInterface, { GenerationStatus } from './ChatInterface';
 import SplitView from './SplitView';
 import { ContentType, DesignStylePreset } from '@/lib/prompts';
 import ContentOptions from './ContentOptions';
+import { Switch } from './ui/switch';
+import { Label } from './ui/label';
 
 // 自定义fetch函数，支持自动重试
 async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 2) {
@@ -70,6 +72,7 @@ export default function TextEditor() {
   const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
   const [generatedFiles, setGeneratedFiles] = useState<Array<{name: string, content: string}> | null>(null);
   const [isMultiFile, setIsMultiFile] = useState<boolean>(false);
+  const [useClaudeModel, setUseClaudeModel] = useState<boolean>(true);
 
   // 分步生成相关状态
   const [generationStep, setGenerationStep] = useState<string>('planning');
@@ -254,7 +257,6 @@ export default function TextEditor() {
       return;
     }
 
-    // 使用标准模式处理
     // 重置所有状态
     resetState();
     setIsLoading(true);
@@ -266,7 +268,7 @@ export default function TextEditor() {
       // 更新生成状态
       setGenerationStatus('generating');
       
-      console.log('发送请求到API...', '标准模式');
+      console.log('发送请求到API...', useClaudeModel ? '使用Claude模型' : '使用DeepSeek模型');
       const response = await fetchWithRetry('/api/generate', {
         method: 'POST',
         headers: {
@@ -275,7 +277,8 @@ export default function TextEditor() {
         body: JSON.stringify({
           text,
           contentType,
-          designStyle
+          designStyle,
+          useClaudeModel  // 添加模型选择参数
         }),
         signal: createTimeoutSignal() // 使用更长的超时时间
       });
@@ -517,6 +520,23 @@ export default function TextEditor() {
           >
             <div className="p-4 bg-gray-100 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 flex justify-between items-center">
               <h2 className="text-lg font-medium text-gray-800 dark:text-white">文本编辑器</h2>
+              <div className="flex items-center space-x-3 bg-white dark:bg-gray-800 rounded-full px-4 py-2 shadow-sm border border-gray-200 dark:border-gray-600">
+                <Bot className={`w-4 h-4 ${useClaudeModel ? 'text-purple-500' : 'text-gray-400'}`} />
+                <div className="flex items-center">
+                  <Label 
+                    htmlFor="use-claude" 
+                    className={`text-sm ${useClaudeModel ? 'font-medium text-purple-600 dark:text-purple-400' : 'text-gray-500 dark:text-gray-400'} cursor-pointer mr-2`}
+                  >
+                    调用Claude
+                  </Label>
+                  <Switch
+                    id="use-claude"
+                    checked={useClaudeModel}
+                    onCheckedChange={setUseClaudeModel}
+                    className="data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-purple-500 data-[state=checked]:to-blue-500"
+                  />
+                </div>
+              </div>
             </div>
             
             {error && (
