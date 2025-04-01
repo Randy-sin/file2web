@@ -72,7 +72,7 @@ export default function TextEditor() {
   const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
   const [generatedFiles, setGeneratedFiles] = useState<Array<{name: string, content: string}> | null>(null);
   const [isMultiFile, setIsMultiFile] = useState<boolean>(false);
-  const [useClaudeModel, setUseClaudeModel] = useState<boolean>(true);
+  const [useClaudeModel, setUseClaudeModel] = useState(false);
 
   // 分步生成相关状态
   const [generationStep, setGenerationStep] = useState<string>('planning');
@@ -520,14 +520,14 @@ export default function TextEditor() {
           >
             <div className="p-4 bg-gray-100 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 flex justify-between items-center">
               <h2 className="text-lg font-medium text-gray-800 dark:text-white">文本编辑器</h2>
-              <div className="flex items-center space-x-3 bg-white dark:bg-gray-800 rounded-full px-4 py-2 shadow-sm border border-gray-200 dark:border-gray-600">
-                <Bot className={`w-4 h-4 ${useClaudeModel ? 'text-purple-500' : 'text-gray-400'}`} />
+              <div className="flex items-center space-x-2 bg-white dark:bg-gray-800 rounded-full px-3 py-1.5 shadow-sm border border-gray-200 dark:border-gray-600">
+                <Bot className={`w-3.5 h-3.5 ${useClaudeModel ? 'text-purple-500' : 'text-gray-400'}`} />
                 <div className="flex items-center">
                   <Label 
                     htmlFor="use-claude" 
-                    className={`text-sm ${useClaudeModel ? 'font-medium text-purple-600 dark:text-purple-400' : 'text-gray-500 dark:text-gray-400'} cursor-pointer mr-2`}
+                    className={`text-xs ${useClaudeModel ? 'font-medium text-purple-600 dark:text-purple-400' : 'text-gray-500 dark:text-gray-400'} cursor-pointer mr-1.5`}
                   >
-                    调用Claude
+                    使用Claude模型
                   </Label>
                   <Switch
                     id="use-claude"
@@ -536,6 +536,9 @@ export default function TextEditor() {
                     className="data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-purple-500 data-[state=checked]:to-blue-500"
                   />
                 </div>
+                {!useClaudeModel && (
+                  <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">(关闭时使用DeepSeek模型)</span>
+                )}
               </div>
             </div>
             
