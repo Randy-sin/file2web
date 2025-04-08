@@ -56,8 +56,8 @@ async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 2)
   throw new Error('所有重试都失败了');
 }
 
-// 为每个请求创建一个更长的超时信号
-function createTimeoutSignal(timeoutMs = 1800000) { // 30分钟超时
+// 为每个请求创建一个超时信号
+function createTimeoutSignal(timeoutMs = 60000) { // 60秒超时 (Vercel限制)
   return AbortSignal.timeout(timeoutMs);
 }
 
