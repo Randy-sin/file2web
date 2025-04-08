@@ -265,7 +265,7 @@ export async function POST(request: Request) {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer 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`
+              'Authorization': `Bearer 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`
             },
             body: JSON.stringify({
               model: "deepseek/deepseek-chat-v3-0324:free",
