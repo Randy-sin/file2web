@@ -1,10 +1,10 @@
-// 设置API路由的最大执行时间为300秒（5分钟）
+// 设置API路由的最大执行时间为60秒（Vercel最大限制）
 export const maxDuration = 60;
 
 import { NextResponse } from 'next/server';
 
-// 设置超时时间为 1800 秒（30分钟）
-const TIMEOUT_MS = 1800000;
+// 设置超时时间为 60 秒（Vercel限制）
+const TIMEOUT_MS = 60000;
 
 // 创建一个带超时的 fetch 函数
 async function fetchWithTimeout(url: string, options: RequestInit, timeout: number) {

@@ -4,6 +4,8 @@ import { connectToDatabase, getCollection } from '@/lib/mongodb';
 
 // 标记为动态路由，防止在构建时预生成
 export const dynamic = 'force-dynamic';
+// 设置最大执行时间为60秒（Vercel限制）
+export const maxDuration = 60;
 
 // 定义文件接口
 interface FileData {
@@ -65,9 +67,22 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // 使用共享的MongoDB连接函数
-    await connectToDatabase();
-    console.log('MongoDB连接成功，准备保存网页内容...');
+    // 使用共享的MongoDB连接函数，添加超时控制
+    try {
+      await Promise.race([
+        connectToDatabase(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('MongoDB连接超时')), 10000)
+        )
+      ]);
+      console.log('MongoDB连接成功，准备保存网页内容...');
+    } catch (dbError) {
+      console.error('MongoDB连接失败:', dbError);
+      return NextResponse.json(
+        { success: false, message: '数据库连接超时，请稍后再试' },
+        { status: 503 }
+      );
+    }
     
     // 获取数据库集合
     const websitesCollection = await getCollection('websites');

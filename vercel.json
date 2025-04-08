@@ -1,6 +1,6 @@
 {
   "functions": {
-    "src/app/api/generate/*.ts": {
+    "src/app/api/**/*.ts": {
       "maxDuration": 60
     }
   },
