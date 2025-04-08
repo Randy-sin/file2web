@@ -1,5 +1,5 @@
 // 设置API路由的最大执行时间为300秒（5分钟）
-export const maxDuration = 300;
+export const maxDuration = 60;
 
 import { NextResponse } from 'next/server';
 
