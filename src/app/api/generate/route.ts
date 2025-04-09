@@ -435,7 +435,7 @@ export async function POST(request: Request) {
     
     // 检查是否是JSON解析错误
     const errorMessage = error instanceof Error && error.message.includes('JSON') 
-      ? '请求格式错误，无法解析JSON内容' 
+      ? '请求格式错误，无法解析内容' 
       : '服务器内部错误，请稍后再试';
     
     return NextResponse.json(
